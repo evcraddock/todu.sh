@@ -21,7 +21,7 @@ This directory contains individual specification files for each unit of work. Ea
 - ✅ [Unit 1.2: Configuration Loading](./unit-1.2-config-loading.md) (20 min)
 - ✅ [Unit 1.3: Config Show Command](./unit-1.3-config-show-command.md) (15 min)
 - ✅ [Unit 1.4: Basic API Client Structure](./unit-1.4-api-client-structure.md) (15 min)
-- 🔲 [Unit 1.5: API Client Methods](./unit-1.5-api-client-methods.md) (30 min)
+- ✅ [Unit 1.5: API Client Methods](./unit-1.5-api-client-methods.md) (30 min)
 
 ### Phase 2: Plugin Interface and Registry (75 min total)
 
@@ -58,8 +58,8 @@ This directory contains individual specification files for each unit of work. Ea
 
 ## Total Estimated Time
 
-- ✅ Completed: ~100 minutes
-- 🔲 Remaining: ~515 minutes (~8.5 hours)
+- ✅ Completed: ~130 minutes
+- 🔲 Remaining: ~485 minutes (~8 hours)
 - **Total**: ~615 minutes (~10 hours)
 
 ## How to Use

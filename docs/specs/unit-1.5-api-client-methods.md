@@ -1,6 +1,6 @@
 # Unit 1.5: API Client Methods
 
-**Status**: 🔲 TODO
+**Status**: ✅ COMPLETE
 
 **Goal**: Implement all API client methods for Todu API endpoints
 

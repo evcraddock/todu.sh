@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/evcraddock/todu.sh/pkg/types"
 )
 
 // Client is an HTTP client for the Todu API
@@ -79,4 +81,299 @@ func parseResponse(resp *http.Response, dest interface{}) error {
 	}
 
 	return nil
+}
+
+// System Methods
+
+// ListSystems retrieves all systems
+func (c *Client) ListSystems(ctx context.Context) ([]*types.System, error) {
+	resp, err := c.doRequest(ctx, http.MethodGet, "/api/systems", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var systems []*types.System
+	if err := parseResponse(resp, &systems); err != nil {
+		return nil, err
+	}
+
+	return systems, nil
+}
+
+// GetSystem retrieves a specific system by ID
+func (c *Client) GetSystem(ctx context.Context, id int) (*types.System, error) {
+	path := fmt.Sprintf("/api/systems/%d", id)
+	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var system types.System
+	if err := parseResponse(resp, &system); err != nil {
+		return nil, err
+	}
+
+	return &system, nil
+}
+
+// CreateSystem creates a new system
+func (c *Client) CreateSystem(ctx context.Context, system *types.SystemCreate) (*types.System, error) {
+	resp, err := c.doRequest(ctx, http.MethodPost, "/api/systems", system)
+	if err != nil {
+		return nil, err
+	}
+
+	var created types.System
+	if err := parseResponse(resp, &created); err != nil {
+		return nil, err
+	}
+
+	return &created, nil
+}
+
+// UpdateSystem updates an existing system
+func (c *Client) UpdateSystem(ctx context.Context, id int, system *types.SystemUpdate) (*types.System, error) {
+	path := fmt.Sprintf("/api/systems/%d", id)
+	resp, err := c.doRequest(ctx, http.MethodPut, path, system)
+	if err != nil {
+		return nil, err
+	}
+
+	var updated types.System
+	if err := parseResponse(resp, &updated); err != nil {
+		return nil, err
+	}
+
+	return &updated, nil
+}
+
+// DeleteSystem deletes a system
+func (c *Client) DeleteSystem(ctx context.Context, id int) error {
+	path := fmt.Sprintf("/api/systems/%d", id)
+	resp, err := c.doRequest(ctx, http.MethodDelete, path, nil)
+	if err != nil {
+		return err
+	}
+
+	return parseResponse(resp, nil)
+}
+
+// Project Methods
+
+// ListProjects retrieves all projects, optionally filtered by system ID
+func (c *Client) ListProjects(ctx context.Context, systemID *int) ([]*types.Project, error) {
+	path := "/api/projects"
+	if systemID != nil {
+		path = fmt.Sprintf("/api/projects?system_id=%d", *systemID)
+	}
+
+	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var projects []*types.Project
+	if err := parseResponse(resp, &projects); err != nil {
+		return nil, err
+	}
+
+	return projects, nil
+}
+
+// GetProject retrieves a specific project by ID
+func (c *Client) GetProject(ctx context.Context, id int) (*types.Project, error) {
+	path := fmt.Sprintf("/api/projects/%d", id)
+	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var project types.Project
+	if err := parseResponse(resp, &project); err != nil {
+		return nil, err
+	}
+
+	return &project, nil
+}
+
+// CreateProject creates a new project
+func (c *Client) CreateProject(ctx context.Context, project *types.ProjectCreate) (*types.Project, error) {
+	resp, err := c.doRequest(ctx, http.MethodPost, "/api/projects", project)
+	if err != nil {
+		return nil, err
+	}
+
+	var created types.Project
+	if err := parseResponse(resp, &created); err != nil {
+		return nil, err
+	}
+
+	return &created, nil
+}
+
+// UpdateProject updates an existing project
+func (c *Client) UpdateProject(ctx context.Context, id int, project *types.ProjectUpdate) (*types.Project, error) {
+	path := fmt.Sprintf("/api/projects/%d", id)
+	resp, err := c.doRequest(ctx, http.MethodPut, path, project)
+	if err != nil {
+		return nil, err
+	}
+
+	var updated types.Project
+	if err := parseResponse(resp, &updated); err != nil {
+		return nil, err
+	}
+
+	return &updated, nil
+}
+
+// DeleteProject deletes a project
+func (c *Client) DeleteProject(ctx context.Context, id int) error {
+	path := fmt.Sprintf("/api/projects/%d", id)
+	resp, err := c.doRequest(ctx, http.MethodDelete, path, nil)
+	if err != nil {
+		return err
+	}
+
+	return parseResponse(resp, nil)
+}
+
+// Task Methods
+
+// ListTasks retrieves all tasks, optionally filtered by project ID
+func (c *Client) ListTasks(ctx context.Context, projectID *int) ([]*types.Task, error) {
+	path := "/api/tasks"
+	if projectID != nil {
+		path = fmt.Sprintf("/api/tasks?project_id=%d", *projectID)
+	}
+
+	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var tasks []*types.Task
+	if err := parseResponse(resp, &tasks); err != nil {
+		return nil, err
+	}
+
+	return tasks, nil
+}
+
+// GetTask retrieves a specific task by ID
+func (c *Client) GetTask(ctx context.Context, id int) (*types.Task, error) {
+	path := fmt.Sprintf("/api/tasks/%d", id)
+	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var task types.Task
+	if err := parseResponse(resp, &task); err != nil {
+		return nil, err
+	}
+
+	return &task, nil
+}
+
+// CreateTask creates a new task
+func (c *Client) CreateTask(ctx context.Context, task *types.TaskCreate) (*types.Task, error) {
+	resp, err := c.doRequest(ctx, http.MethodPost, "/api/tasks", task)
+	if err != nil {
+		return nil, err
+	}
+
+	var created types.Task
+	if err := parseResponse(resp, &created); err != nil {
+		return nil, err
+	}
+
+	return &created, nil
+}
+
+// UpdateTask updates an existing task
+func (c *Client) UpdateTask(ctx context.Context, id int, task *types.TaskUpdate) (*types.Task, error) {
+	path := fmt.Sprintf("/api/tasks/%d", id)
+	resp, err := c.doRequest(ctx, http.MethodPut, path, task)
+	if err != nil {
+		return nil, err
+	}
+
+	var updated types.Task
+	if err := parseResponse(resp, &updated); err != nil {
+		return nil, err
+	}
+
+	return &updated, nil
+}
+
+// DeleteTask deletes a task
+func (c *Client) DeleteTask(ctx context.Context, id int) error {
+	path := fmt.Sprintf("/api/tasks/%d", id)
+	resp, err := c.doRequest(ctx, http.MethodDelete, path, nil)
+	if err != nil {
+		return err
+	}
+
+	return parseResponse(resp, nil)
+}
+
+// Comment Methods
+
+// ListComments retrieves all comments for a task
+func (c *Client) ListComments(ctx context.Context, taskID int) ([]*types.Comment, error) {
+	path := fmt.Sprintf("/api/tasks/%d/comments", taskID)
+	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var comments []*types.Comment
+	if err := parseResponse(resp, &comments); err != nil {
+		return nil, err
+	}
+
+	return comments, nil
+}
+
+// GetComment retrieves a specific comment by ID
+func (c *Client) GetComment(ctx context.Context, id int) (*types.Comment, error) {
+	path := fmt.Sprintf("/api/comments/%d", id)
+	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var comment types.Comment
+	if err := parseResponse(resp, &comment); err != nil {
+		return nil, err
+	}
+
+	return &comment, nil
+}
+
+// CreateComment creates a new comment
+func (c *Client) CreateComment(ctx context.Context, comment *types.CommentCreate) (*types.Comment, error) {
+	resp, err := c.doRequest(ctx, http.MethodPost, "/api/comments", comment)
+	if err != nil {
+		return nil, err
+	}
+
+	var created types.Comment
+	if err := parseResponse(resp, &created); err != nil {
+		return nil, err
+	}
+
+	return &created, nil
+}
+
+// DeleteComment deletes a comment
+func (c *Client) DeleteComment(ctx context.Context, id int) error {
+	path := fmt.Sprintf("/api/comments/%d", id)
+	resp, err := c.doRequest(ctx, http.MethodDelete, path, nil)
+	if err != nil {
+		return err
+	}
+
+	return parseResponse(resp, nil)
 }

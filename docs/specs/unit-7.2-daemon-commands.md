@@ -22,13 +22,25 @@ Create `cmd/todu/cmd/daemon.go` with:
 
 ### 2. Service Management Package
 
-Create `internal/daemon/service.go`:
+Create platform-specific service management files:
 
-- Use `github.com/kardianos/service` package
-- Implement service.Interface
-- Support macOS (launchd) and Linux (systemd)
+**`internal/daemon/service.go`** (shared interface):
+
+- Define common service operations interface
 - Service name: "todu"
 - Service display name: "Todu Task Sync Daemon"
+
+**`internal/daemon/service_darwin.go`** (macOS):
+
+- Generate and write launchd plist files
+- Use `launchctl` commands via `exec.Command`
+- Target: `~/Library/LaunchAgents/com.todu.daemon.plist`
+
+**`internal/daemon/service_linux.go`** (Linux):
+
+- Generate and write systemd unit files
+- Use `systemctl --user` commands via `exec.Command`
+- Target: `~/.config/systemd/user/todu.service` (user service)
 
 ### 3. Daemon Start Command (Foreground)
 
@@ -49,10 +61,9 @@ Implement `daemon install` subcommand that:
 - Optional `--projects <ids>` flag (comma-separated)
 - Creates service configuration file:
   - macOS: `~/Library/LaunchAgents/com.todu.daemon.plist`
-  - Linux: `/etc/systemd/system/todu.service`
+  - Linux: `~/.config/systemd/user/todu.service`
 - Sets service to start at login/boot
 - Shows installation instructions
-- Requires appropriate permissions
 
 ### 5. Daemon Uninstall Command
 
@@ -106,20 +117,25 @@ Implement `daemon logs` subcommand that:
 ### 10. Platform-Specific Implementation
 
 **macOS (launchd):**
-- Create plist file
-- Use `launchctl load/unload`
-- User-level service (LaunchAgents)
+
+- Generate plist XML with `KeepAlive`, `RunAtLoad`, and `ProgramArguments`
+- Write to `~/Library/LaunchAgents/com.todu.daemon.plist`
+- Use `launchctl load/unload/start/stop` via `exec.Command`
+- User-level service (no sudo required)
 
 **Linux (systemd):**
-- Create unit file
-- Use `systemctl enable/disable/start/stop`
-- User-level service or system-level
 
-### 11. Permission Handling
+- Generate unit file with `[Unit]`, `[Service]`, and `[Install]` sections
+- Write to `~/.config/systemd/user/todu.service`
+- Use `systemctl --user enable/disable/start/stop` via `exec.Command`
+- User-level service (no sudo required)
+- Run `systemctl --user daemon-reload` after writing unit file
 
-- Check for appropriate permissions
-- Guide user on using sudo if needed
-- Handle permission errors gracefully
+### 11. Error Handling
+
+- Handle missing directories (create `~/.config/systemd/user/` if needed)
+- Provide clear error messages for command failures
+- Verify executable path exists before writing service files
 
 ---
 
@@ -140,6 +156,7 @@ Implement `daemon logs` subcommand that:
 ## Verification
 
 Commands to test:
+
 - `todu daemon --help`
 - `todu daemon start` (foreground mode)
 - `todu daemon install`
@@ -150,6 +167,7 @@ Commands to test:
 - `todu daemon uninstall`
 
 Platform-specific:
+
 - macOS: Check plist file creation
 - Linux: Check systemd unit file
 - Verify service starts at login/boot

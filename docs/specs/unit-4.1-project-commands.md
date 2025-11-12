@@ -41,7 +41,13 @@ Implement `project add` subcommand that:
 - Requires `--name <name>` flag
 - Optional `--description <text>` flag
 - Optional `--status <status>` flag (default: "active")
+- Optional `--sync-strategy <strategy>` flag (default: "bidirectional")
+  - Valid values: "pull", "push", "bidirectional"
+  - "pull": External → Todu only (read-only sync from external)
+  - "push": Todu → External only (push changes to external)
+  - "bidirectional": Two-way sync with conflict resolution
 - Validates system exists
+- Validates sync strategy is valid
 - Shows created project details
 
 ### 4. Show Project Command
@@ -49,7 +55,7 @@ Implement `project add` subcommand that:
 Implement `project show <id>` subcommand that:
 
 - Displays detailed project information
-- Shows all fields: ID, Name, Description, System, External ID, Status
+- Shows all fields: ID, Name, Description, System, External ID, Status, Sync Strategy
 - Shows when project was created/updated
 - Displays associated system details
 - Uses human-readable format
@@ -62,6 +68,9 @@ Implement `project update <id>` subcommand that:
 - Optional `--name <name>` flag
 - Optional `--description <text>` flag
 - Optional `--status <status>` flag
+- Optional `--sync-strategy <strategy>` flag
+  - Valid values: "pull", "push", "bidirectional"
+  - Validates strategy is valid
 - Only updates fields that are provided
 - Shows updated project details
 
@@ -89,12 +98,14 @@ Implement `project discover` subcommand that:
 ### 8. Output Formatting
 
 For text output:
+
 - Use tables for lists
 - Clear column headers
 - Aligned columns
 - Truncate long descriptions
 
 For JSON output:
+
 - Pretty-printed JSON
 - Include all fields
 - Arrays for lists
@@ -118,10 +129,13 @@ For JSON output:
 ## Verification
 
 Commands to test:
+
 - `todu project --help`
 - `todu project list`
 - `todu project list --system 1`
 - `todu project add --system 1 --external-id "owner/repo" --name "My Project"`
+- `todu project add --system 1 --external-id "owner/repo2" \`
+  `--name "My Project 2" --sync-strategy pull`
 - `todu project show 1`
 - `todu project update 1 --name "Updated Name"`
 - `todu project discover --system 1`

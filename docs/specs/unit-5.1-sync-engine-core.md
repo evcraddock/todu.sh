@@ -45,12 +45,21 @@ Create `internal/sync/options.go`:
 
 ```go
 type Options struct {
-    ProjectIDs []int
-    SystemID   *int
-    Strategy   Strategy
-    DryRun     bool
+    ProjectIDs       []int
+    SystemID         *int
+    StrategyOverride *Strategy  // Optional: Override project's configured strategy
+    DryRun           bool
 }
 ```
+
+**Strategy Resolution:**
+
+- Each project has a configured `sync_strategy` field (set via
+  `todu project add/update`)
+- The sync engine reads this strategy from the project
+- If `StrategyOverride` is provided in options, it takes precedence
+  over the project's strategy
+- This allows per-project defaults with command-line overrides
 
 ### 4. Sync Algorithm
 
@@ -59,30 +68,36 @@ Implement `Sync(ctx context.Context, options Options) (*Result, error)`:
 **For each project:**
 
 1. Get project details from Todu API
-2. Get system for project
-3. Create plugin instance for system
-4. Get last sync time from project metadata
-5. Fetch tasks from plugin (since last sync if pull/bidirectional)
-6. Fetch tasks from Todu API for this project
-7. Sync tasks based on strategy:
+2. Determine sync strategy:
+   - Use `options.StrategyOverride` if provided
+   - Otherwise use project's `sync_strategy` field
+3. Get system for project
+4. Create plugin instance for system
+5. Get last sync time from project metadata
+6. Fetch tasks from plugin (since last sync if pull/bidirectional)
+7. Fetch tasks from Todu API for this project
+8. Sync tasks based on strategy:
 
-**Pull Strategy:**
-- For each external task:
-  - Find in Todu by external_id and project_id
-  - If not found: Create in Todu
-  - If found and external is newer: Update in Todu
+   **Pull Strategy:**
 
-**Push Strategy:**
-- For each Todu task with external_id:
-  - Fetch from external system
-  - If Todu is newer: Push update to external
+   - For each external task:
+     - Find in Todu by external_id and project_id
+     - If not found: Create in Todu
+     - If found and external is newer: Update in Todu
 
-**Bidirectional:**
-- Run both pull and push
-- Use last-write-wins for conflicts (compare updated_at)
+   **Push Strategy:**
 
-8. Update last sync time in project metadata
-9. Collect and return sync results
+   - For each Todu task with external_id:
+     - Fetch from external system
+     - If Todu is newer: Push update to external
+
+   **Bidirectional:**
+
+   - Run both pull and push
+   - Use last-write-wins for conflicts (compare updated_at)
+
+9. Update last sync time in project metadata
+10. Collect and return sync results
 
 ### 5. Conflict Resolution
 
@@ -119,6 +134,7 @@ type ProjectResult struct {
 ### 7. Progress Reporting
 
 Implement progress tracking:
+
 - Log progress to stdout
 - Show current project being synced
 - Show tasks processed/total
@@ -134,6 +150,7 @@ Implement progress tracking:
 ### 9. Dry Run Mode
 
 When `DryRun` is true:
+
 - Don't make any changes
 - Show what would be created/updated
 - Return predicted results
