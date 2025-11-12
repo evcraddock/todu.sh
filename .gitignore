@@ -1,5 +1,5 @@
 # Compiled binaries (Go)
-todu
+/todu
 *.exe
 *.dll
 *.so
