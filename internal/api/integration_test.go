@@ -54,9 +54,11 @@ func TestIntegrationListTasks(t *testing.T) {
 func TestIntegrationCreateSystem(t *testing.T) {
 	client := NewClient(getAPIURL())
 
+	url := "https://example.com"
 	create := &types.SystemCreate{
 		Identifier: "test-integration",
 		Name:       "Integration Test System",
+		URL:        &url,
 	}
 
 	system, err := client.CreateSystem(context.Background(), create)
