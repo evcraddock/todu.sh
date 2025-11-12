@@ -45,11 +45,13 @@ the system, you'll need to configure it using environment variables.`,
 }
 
 var systemShowCmd = &cobra.Command{
-	Use:   "show <id>",
+	Use:   "show <id|identifier>",
 	Short: "Show system details",
-	Long:  `Display detailed information about a specific system.`,
-	Args:  cobra.ExactArgs(1),
-	RunE:  runSystemShow,
+	Long:  `Display detailed information about a specific system.
+
+You can specify either the system ID (numeric) or the system identifier (e.g., "github").`,
+	Args: cobra.ExactArgs(1),
+	RunE: runSystemShow,
 }
 
 var systemConfigCmd = &cobra.Command{
@@ -64,11 +66,13 @@ and whether they are currently set.`,
 }
 
 var systemRemoveCmd = &cobra.Command{
-	Use:   "remove <id>",
+	Use:   "remove <id|identifier>",
 	Short: "Remove a system",
-	Long:  `Remove a system from todu.`,
-	Args:  cobra.ExactArgs(1),
-	RunE:  runSystemRemove,
+	Long:  `Remove a system from todu.
+
+You can specify either the system ID (numeric) or the system identifier (e.g., "github").`,
+	Args: cobra.ExactArgs(1),
+	RunE: runSystemRemove,
 }
 
 var (
@@ -215,20 +219,39 @@ func runSystemAdd(cmd *cobra.Command, args []string) error {
 }
 
 func runSystemShow(cmd *cobra.Command, args []string) error {
-	var id int
-	if _, err := fmt.Sscanf(args[0], "%d", &id); err != nil {
-		return fmt.Errorf("invalid system ID: %s", args[0])
-	}
-
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
 	client := api.NewClient(cfg.APIURL)
-	system, err := client.GetSystem(context.Background(), id)
-	if err != nil {
-		return fmt.Errorf("failed to get system: %w", err)
+
+	// Try to parse as integer ID first
+	var system *types.System
+	var numID int
+	if _, err := fmt.Sscanf(args[0], "%d", &numID); err == nil {
+		system, err = client.GetSystem(context.Background(), numID)
+		if err != nil {
+			return fmt.Errorf("failed to get system: %w", err)
+		}
+	} else {
+		// Treat as identifier - search through all systems
+		identifier := args[0]
+		systems, err := client.ListSystems(context.Background())
+		if err != nil {
+			return fmt.Errorf("failed to list systems: %w", err)
+		}
+
+		for _, s := range systems {
+			if s.Identifier == identifier {
+				system = s
+				break
+			}
+		}
+
+		if system == nil {
+			return fmt.Errorf("system with identifier %q not found", identifier)
+		}
 	}
 
 	fmt.Printf("System ID: %d\n", system.ID)
@@ -322,21 +345,41 @@ func runSystemConfig(cmd *cobra.Command, args []string) error {
 }
 
 func runSystemRemove(cmd *cobra.Command, args []string) error {
-	var id int
-	if _, err := fmt.Sscanf(args[0], "%d", &id); err != nil {
-		return fmt.Errorf("invalid system ID: %s", args[0])
-	}
-
-	// Get system details first
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
 	client := api.NewClient(cfg.APIURL)
-	system, err := client.GetSystem(context.Background(), id)
-	if err != nil {
-		return fmt.Errorf("failed to get system: %w", err)
+
+	// Try to parse as integer ID first, otherwise treat as identifier
+	var system *types.System
+	var id int
+	if _, err := fmt.Sscanf(args[0], "%d", &id); err == nil {
+		// It's a numeric ID
+		system, err = client.GetSystem(context.Background(), id)
+		if err != nil {
+			return fmt.Errorf("failed to get system: %w", err)
+		}
+	} else {
+		// Treat as identifier - search through all systems
+		identifier := args[0]
+		systems, err := client.ListSystems(context.Background())
+		if err != nil {
+			return fmt.Errorf("failed to list systems: %w", err)
+		}
+
+		for _, s := range systems {
+			if s.Identifier == identifier {
+				system = s
+				id = s.ID
+				break
+			}
+		}
+
+		if system == nil {
+			return fmt.Errorf("system with identifier %q not found", identifier)
+		}
 	}
 
 	// Confirm deletion unless --force
