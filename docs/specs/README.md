@@ -32,7 +32,7 @@ This directory contains individual specification files for each unit of work. Ea
 ### Phase 3: GitHub Plugin (60 min total)
 
 - ✅ [Unit 3.1: GitHub Plugin Structure](./unit-3.1-github-plugin-structure.md) (15 min)
-- 🔲 [Unit 3.2: GitHub Plugin Implementation](./unit-3.2-github-plugin-implementation.md) (45 min)
+- ✅ [Unit 3.2: GitHub Plugin Implementation](./unit-3.2-github-plugin-implementation.md) (45 min)
 
 ### Phase 4: Project Management (40 min total)
 
@@ -58,8 +58,8 @@ This directory contains individual specification files for each unit of work. Ea
 
 ## Total Estimated Time
 
-- ✅ Completed: ~220 minutes
-- 🔲 Remaining: ~395 minutes (~6.58 hours)
+- ✅ Completed: ~265 minutes
+- 🔲 Remaining: ~350 minutes (~5.83 hours)
 - **Total**: ~615 minutes (~10 hours)
 
 ## How to Use
