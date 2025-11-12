@@ -94,6 +94,7 @@ var (
 	projectUpdateStatus      string
 	projectUpdateSyncStrategy string
 	projectRemoveForce       bool
+	projectRemoveCascade     bool
 	projectDiscoverSystem    int
 	projectDiscoverAutoImport bool
 )
@@ -130,6 +131,7 @@ func init() {
 
 	// project remove flags
 	projectRemoveCmd.Flags().BoolVar(&projectRemoveForce, "force", false, "Skip confirmation prompt")
+	projectRemoveCmd.Flags().BoolVar(&projectRemoveCascade, "cascade", false, "Delete associated tasks as well")
 
 	// project discover flags
 	projectDiscoverCmd.Flags().IntVar(&projectDiscoverSystem, "system", 0, "System ID (required)")
@@ -373,19 +375,51 @@ func runProjectRemove(cmd *cobra.Command, args []string) error {
 	}
 
 	// Delete project
-	err = client.DeleteProject(context.Background(), projectID)
+	err = client.DeleteProject(context.Background(), projectID, projectRemoveCascade)
 	if err != nil {
 		// Check if it's because of associated tasks
 		if strings.Contains(err.Error(), "tasks") || strings.Contains(err.Error(), "associated") {
-			fmt.Fprintf(os.Stderr, "Error: Cannot remove project with associated tasks\n\n")
-			fmt.Fprintln(os.Stderr, "Please remove all tasks from this project first:")
-			fmt.Fprintf(os.Stderr, "  todu task list --project %d\n", projectID)
+			fmt.Fprintf(os.Stderr, "\nError: Cannot remove project with associated tasks\n\n")
+
+			// Extract task count from error message if available
+			errorMsg := err.Error()
+			fmt.Fprintf(os.Stderr, "%s\n\n", errorMsg)
+
+			// Offer to cascade delete
+			fmt.Fprintln(os.Stderr, "Options:")
+			fmt.Fprintln(os.Stderr, "  1. Remove tasks first:")
+			fmt.Fprintf(os.Stderr, "     todu task list --project %d\n", projectID)
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, "  2. Delete project and all associated tasks:")
+			fmt.Fprintf(os.Stderr, "     todu project remove %d --cascade\n", projectID)
+
+			// If not using --force, offer to cascade delete now
+			if !projectRemoveForce && !projectRemoveCascade {
+				fmt.Fprintf(os.Stderr, "\nWould you like to delete the project and all its tasks now? [y/N]: ")
+				var response string
+				fmt.Scanln(&response)
+				response = strings.ToLower(strings.TrimSpace(response))
+				if response == "y" || response == "yes" {
+					// Retry with cascade
+					err = client.DeleteProject(context.Background(), projectID, true)
+					if err != nil {
+						return fmt.Errorf("failed to remove project with cascade: %w", err)
+					}
+					fmt.Printf("\nRemoved project %d and all associated tasks: %s\n", projectID, project.Name)
+					return nil
+				}
+			}
+
 			return err
 		}
 		return fmt.Errorf("failed to remove project: %w", err)
 	}
 
-	fmt.Printf("Removed project %d: %s\n", projectID, project.Name)
+	if projectRemoveCascade {
+		fmt.Printf("Removed project %d and all associated tasks: %s\n", projectID, project.Name)
+	} else {
+		fmt.Printf("Removed project %d: %s\n", projectID, project.Name)
+	}
 	return nil
 }
 

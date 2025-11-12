@@ -228,8 +228,11 @@ func (c *Client) UpdateProject(ctx context.Context, id int, project *types.Proje
 }
 
 // DeleteProject deletes a project
-func (c *Client) DeleteProject(ctx context.Context, id int) error {
+func (c *Client) DeleteProject(ctx context.Context, id int, cascade bool) error {
 	path := fmt.Sprintf("/api/v1/projects/%d", id)
+	if cascade {
+		path += "?cascade=true"
+	}
 	resp, err := c.doRequest(ctx, http.MethodDelete, path, nil)
 	if err != nil {
 		return err
