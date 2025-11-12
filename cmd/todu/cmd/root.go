@@ -12,7 +12,7 @@ var rootCmd = &cobra.Command{
 	Long: `todu.sh - A unified task management CLI
 
 todu provides a single interface to manage tasks and issues across
-multiple systems including GitHub, Forgejo, Todoist, and more.`,
+multiple external task management systems via a plugin architecture.`,
 }
 
 func Execute() {
