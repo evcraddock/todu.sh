@@ -33,8 +33,8 @@ func TestListSystems(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/systems" {
-			t.Errorf("Expected path '/api/systems', got '%s'", r.URL.Path)
+		if r.URL.Path != "/api/v1/systems/" {
+			t.Errorf("Expected path '/api/v1/systems/', got '%s'", r.URL.Path)
 		}
 		if r.Method != http.MethodGet {
 			t.Errorf("Expected GET request, got '%s'", r.Method)
@@ -69,8 +69,8 @@ func TestGetSystem(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/systems/1" {
-			t.Errorf("Expected path '/api/systems/1', got '%s'", r.URL.Path)
+		if r.URL.Path != "/api/v1/systems/1" {
+			t.Errorf("Expected path '/api/v1/systems/1', got '%s'", r.URL.Path)
 		}
 		if r.Method != http.MethodGet {
 			t.Errorf("Expected GET request, got '%s'", r.Method)
@@ -124,8 +124,8 @@ func TestCreateSystem(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/systems" {
-			t.Errorf("Expected path '/api/systems', got '%s'", r.URL.Path)
+		if r.URL.Path != "/api/v1/systems/" {
+			t.Errorf("Expected path '/api/v1/systems/', got '%s'", r.URL.Path)
 		}
 		if r.Method != http.MethodPost {
 			t.Errorf("Expected POST request, got '%s'", r.Method)
@@ -174,8 +174,8 @@ func TestUpdateSystem(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/systems/1" {
-			t.Errorf("Expected path '/api/systems/1', got '%s'", r.URL.Path)
+		if r.URL.Path != "/api/v1/systems/1" {
+			t.Errorf("Expected path '/api/v1/systems/1', got '%s'", r.URL.Path)
 		}
 		if r.Method != http.MethodPut {
 			t.Errorf("Expected PUT request, got '%s'", r.Method)
@@ -207,8 +207,8 @@ func TestUpdateSystem(t *testing.T) {
 
 func TestDeleteSystem(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/systems/1" {
-			t.Errorf("Expected path '/api/systems/1', got '%s'", r.URL.Path)
+		if r.URL.Path != "/api/v1/systems/1" {
+			t.Errorf("Expected path '/api/v1/systems/1', got '%s'", r.URL.Path)
 		}
 		if r.Method != http.MethodDelete {
 			t.Errorf("Expected DELETE request, got '%s'", r.Method)
@@ -243,8 +243,8 @@ func TestListProjects(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/projects" {
-			t.Errorf("Expected path '/api/projects', got '%s'", r.URL.Path)
+		if r.URL.Path != "/api/v1/projects/" {
+			t.Errorf("Expected path '/api/v1/projects/', got '%s'", r.URL.Path)
 		}
 		if r.Method != http.MethodGet {
 			t.Errorf("Expected GET request, got '%s'", r.Method)
@@ -282,7 +282,7 @@ func TestListProjectsWithFilter(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		expectedPath := "/api/projects?system_id=1"
+		expectedPath := "/api/v1/projects/?system_id=1"
 		if r.URL.Path+"?"+r.URL.RawQuery != expectedPath {
 			t.Errorf("Expected path '%s', got '%s'", expectedPath, r.URL.Path+"?"+r.URL.RawQuery)
 		}
@@ -316,8 +316,8 @@ func TestGetProject(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/projects/1" {
-			t.Errorf("Expected path '/api/projects/1', got '%s'", r.URL.Path)
+		if r.URL.Path != "/api/v1/projects/1" {
+			t.Errorf("Expected path '/api/v1/projects/1', got '%s'", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(project)
@@ -439,21 +439,26 @@ func TestDeleteProject(t *testing.T) {
 
 func TestListTasks(t *testing.T) {
 	now := time.Now()
-	tasks := []*types.Task{
-		{
-			ID:          1,
-			ExternalID:  "123",
-			Title:       "Test Task",
-			ProjectID:   1,
-			Status:      "open",
-			CreatedAt:   now,
-			UpdatedAt:   now,
+	tasksResp := TasksResponse{
+		Items: []*types.Task{
+			{
+				ID:          1,
+				ExternalID:  "123",
+				Title:       "Test Task",
+				ProjectID:   1,
+				Status:      "open",
+				CreatedAt:   now,
+				UpdatedAt:   now,
+			},
 		},
+		Total: 1,
+		Skip:  0,
+		Limit: 50,
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(tasks)
+		json.NewEncoder(w).Encode(tasksResp)
 	}))
 	defer server.Close()
 
@@ -471,16 +476,21 @@ func TestListTasks(t *testing.T) {
 func TestListTasksWithFilter(t *testing.T) {
 	now := time.Now()
 	projectID := 1
-	tasks := []*types.Task{
-		{
-			ID:          1,
-			ExternalID:  "123",
-			Title:       "Test Task",
-			ProjectID:   1,
-			Status:      "open",
-			CreatedAt:   now,
-			UpdatedAt:   now,
+	tasksResp := TasksResponse{
+		Items: []*types.Task{
+			{
+				ID:          1,
+				ExternalID:  "123",
+				Title:       "Test Task",
+				ProjectID:   1,
+				Status:      "open",
+				CreatedAt:   now,
+				UpdatedAt:   now,
+			},
 		},
+		Total: 1,
+		Skip:  0,
+		Limit: 50,
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -488,7 +498,7 @@ func TestListTasksWithFilter(t *testing.T) {
 			t.Errorf("Expected query 'project_id=1', got '%s'", r.URL.RawQuery)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(tasks)
+		json.NewEncoder(w).Encode(tasksResp)
 	}))
 	defer server.Close()
 
@@ -638,8 +648,8 @@ func TestListComments(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/tasks/1/comments" {
-			t.Errorf("Expected path '/api/tasks/1/comments', got '%s'", r.URL.Path)
+		if r.URL.Path != "/api/v1/tasks/1/comments" {
+			t.Errorf("Expected path '/api/v1/tasks/1/comments', got '%s'", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(comments)
@@ -669,8 +679,8 @@ func TestGetComment(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/comments/1" {
-			t.Errorf("Expected path '/api/comments/1', got '%s'", r.URL.Path)
+		if r.URL.Path != "/api/v1/comments/1" {
+			t.Errorf("Expected path '/api/v1/comments/1', got '%s'", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(comment)
@@ -733,8 +743,8 @@ func TestCreateComment(t *testing.T) {
 
 func TestDeleteComment(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/comments/1" {
-			t.Errorf("Expected path '/api/comments/1', got '%s'", r.URL.Path)
+		if r.URL.Path != "/api/v1/comments/1" {
+			t.Errorf("Expected path '/api/v1/comments/1', got '%s'", r.URL.Path)
 		}
 		if r.Method != http.MethodDelete {
 			t.Errorf("Expected DELETE request, got '%s'", r.Method)

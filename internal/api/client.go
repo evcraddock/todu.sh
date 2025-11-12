@@ -87,7 +87,7 @@ func parseResponse(resp *http.Response, dest interface{}) error {
 
 // ListSystems retrieves all systems
 func (c *Client) ListSystems(ctx context.Context) ([]*types.System, error) {
-	resp, err := c.doRequest(ctx, http.MethodGet, "/api/systems", nil)
+	resp, err := c.doRequest(ctx, http.MethodGet, "/api/v1/systems/", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func (c *Client) ListSystems(ctx context.Context) ([]*types.System, error) {
 
 // GetSystem retrieves a specific system by ID
 func (c *Client) GetSystem(ctx context.Context, id int) (*types.System, error) {
-	path := fmt.Sprintf("/api/systems/%d", id)
+	path := fmt.Sprintf("/api/v1/systems/%d", id)
 	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ func (c *Client) GetSystem(ctx context.Context, id int) (*types.System, error) {
 
 // CreateSystem creates a new system
 func (c *Client) CreateSystem(ctx context.Context, system *types.SystemCreate) (*types.System, error) {
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/systems", system)
+	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/systems/", system)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (c *Client) CreateSystem(ctx context.Context, system *types.SystemCreate) (
 
 // UpdateSystem updates an existing system
 func (c *Client) UpdateSystem(ctx context.Context, id int, system *types.SystemUpdate) (*types.System, error) {
-	path := fmt.Sprintf("/api/systems/%d", id)
+	path := fmt.Sprintf("/api/v1/systems/%d", id)
 	resp, err := c.doRequest(ctx, http.MethodPut, path, system)
 	if err != nil {
 		return nil, err
@@ -149,7 +149,7 @@ func (c *Client) UpdateSystem(ctx context.Context, id int, system *types.SystemU
 
 // DeleteSystem deletes a system
 func (c *Client) DeleteSystem(ctx context.Context, id int) error {
-	path := fmt.Sprintf("/api/systems/%d", id)
+	path := fmt.Sprintf("/api/v1/systems/%d", id)
 	resp, err := c.doRequest(ctx, http.MethodDelete, path, nil)
 	if err != nil {
 		return err
@@ -162,9 +162,9 @@ func (c *Client) DeleteSystem(ctx context.Context, id int) error {
 
 // ListProjects retrieves all projects, optionally filtered by system ID
 func (c *Client) ListProjects(ctx context.Context, systemID *int) ([]*types.Project, error) {
-	path := "/api/projects"
+	path := "/api/v1/projects/"
 	if systemID != nil {
-		path = fmt.Sprintf("/api/projects?system_id=%d", *systemID)
+		path = fmt.Sprintf("/api/v1/projects/?system_id=%d", *systemID)
 	}
 
 	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
@@ -182,7 +182,7 @@ func (c *Client) ListProjects(ctx context.Context, systemID *int) ([]*types.Proj
 
 // GetProject retrieves a specific project by ID
 func (c *Client) GetProject(ctx context.Context, id int) (*types.Project, error) {
-	path := fmt.Sprintf("/api/projects/%d", id)
+	path := fmt.Sprintf("/api/v1/projects/%d", id)
 	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
@@ -198,7 +198,7 @@ func (c *Client) GetProject(ctx context.Context, id int) (*types.Project, error)
 
 // CreateProject creates a new project
 func (c *Client) CreateProject(ctx context.Context, project *types.ProjectCreate) (*types.Project, error) {
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/projects", project)
+	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/projects/", project)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +213,7 @@ func (c *Client) CreateProject(ctx context.Context, project *types.ProjectCreate
 
 // UpdateProject updates an existing project
 func (c *Client) UpdateProject(ctx context.Context, id int, project *types.ProjectUpdate) (*types.Project, error) {
-	path := fmt.Sprintf("/api/projects/%d", id)
+	path := fmt.Sprintf("/api/v1/projects/%d", id)
 	resp, err := c.doRequest(ctx, http.MethodPut, path, project)
 	if err != nil {
 		return nil, err
@@ -229,7 +229,7 @@ func (c *Client) UpdateProject(ctx context.Context, id int, project *types.Proje
 
 // DeleteProject deletes a project
 func (c *Client) DeleteProject(ctx context.Context, id int) error {
-	path := fmt.Sprintf("/api/projects/%d", id)
+	path := fmt.Sprintf("/api/v1/projects/%d", id)
 	resp, err := c.doRequest(ctx, http.MethodDelete, path, nil)
 	if err != nil {
 		return err
@@ -240,11 +240,19 @@ func (c *Client) DeleteProject(ctx context.Context, id int) error {
 
 // Task Methods
 
+// TasksResponse represents the paginated tasks response from the API
+type TasksResponse struct {
+	Items []*types.Task `json:"items"`
+	Total int           `json:"total"`
+	Skip  int           `json:"skip"`
+	Limit int           `json:"limit"`
+}
+
 // ListTasks retrieves all tasks, optionally filtered by project ID
 func (c *Client) ListTasks(ctx context.Context, projectID *int) ([]*types.Task, error) {
-	path := "/api/tasks"
+	path := "/api/v1/tasks/"
 	if projectID != nil {
-		path = fmt.Sprintf("/api/tasks?project_id=%d", *projectID)
+		path = fmt.Sprintf("/api/v1/tasks/?project_id=%d", *projectID)
 	}
 
 	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
@@ -252,17 +260,17 @@ func (c *Client) ListTasks(ctx context.Context, projectID *int) ([]*types.Task, 
 		return nil, err
 	}
 
-	var tasks []*types.Task
-	if err := parseResponse(resp, &tasks); err != nil {
+	var tasksResp TasksResponse
+	if err := parseResponse(resp, &tasksResp); err != nil {
 		return nil, err
 	}
 
-	return tasks, nil
+	return tasksResp.Items, nil
 }
 
 // GetTask retrieves a specific task by ID
 func (c *Client) GetTask(ctx context.Context, id int) (*types.Task, error) {
-	path := fmt.Sprintf("/api/tasks/%d", id)
+	path := fmt.Sprintf("/api/v1/tasks/%d", id)
 	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
@@ -278,7 +286,7 @@ func (c *Client) GetTask(ctx context.Context, id int) (*types.Task, error) {
 
 // CreateTask creates a new task
 func (c *Client) CreateTask(ctx context.Context, task *types.TaskCreate) (*types.Task, error) {
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/tasks", task)
+	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/tasks/", task)
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +301,7 @@ func (c *Client) CreateTask(ctx context.Context, task *types.TaskCreate) (*types
 
 // UpdateTask updates an existing task
 func (c *Client) UpdateTask(ctx context.Context, id int, task *types.TaskUpdate) (*types.Task, error) {
-	path := fmt.Sprintf("/api/tasks/%d", id)
+	path := fmt.Sprintf("/api/v1/tasks/%d", id)
 	resp, err := c.doRequest(ctx, http.MethodPut, path, task)
 	if err != nil {
 		return nil, err
@@ -309,7 +317,7 @@ func (c *Client) UpdateTask(ctx context.Context, id int, task *types.TaskUpdate)
 
 // DeleteTask deletes a task
 func (c *Client) DeleteTask(ctx context.Context, id int) error {
-	path := fmt.Sprintf("/api/tasks/%d", id)
+	path := fmt.Sprintf("/api/v1/tasks/%d", id)
 	resp, err := c.doRequest(ctx, http.MethodDelete, path, nil)
 	if err != nil {
 		return err
@@ -322,7 +330,7 @@ func (c *Client) DeleteTask(ctx context.Context, id int) error {
 
 // ListComments retrieves all comments for a task
 func (c *Client) ListComments(ctx context.Context, taskID int) ([]*types.Comment, error) {
-	path := fmt.Sprintf("/api/tasks/%d/comments", taskID)
+	path := fmt.Sprintf("/api/v1/tasks/%d/comments", taskID)
 	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
@@ -338,7 +346,7 @@ func (c *Client) ListComments(ctx context.Context, taskID int) ([]*types.Comment
 
 // GetComment retrieves a specific comment by ID
 func (c *Client) GetComment(ctx context.Context, id int) (*types.Comment, error) {
-	path := fmt.Sprintf("/api/comments/%d", id)
+	path := fmt.Sprintf("/api/v1/comments/%d", id)
 	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
@@ -354,7 +362,7 @@ func (c *Client) GetComment(ctx context.Context, id int) (*types.Comment, error)
 
 // CreateComment creates a new comment
 func (c *Client) CreateComment(ctx context.Context, comment *types.CommentCreate) (*types.Comment, error) {
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/comments", comment)
+	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/comments/", comment)
 	if err != nil {
 		return nil, err
 	}
@@ -369,7 +377,7 @@ func (c *Client) CreateComment(ctx context.Context, comment *types.CommentCreate
 
 // DeleteComment deletes a comment
 func (c *Client) DeleteComment(ctx context.Context, id int) error {
-	path := fmt.Sprintf("/api/comments/%d", id)
+	path := fmt.Sprintf("/api/v1/comments/%d", id)
 	resp, err := c.doRequest(ctx, http.MethodDelete, path, nil)
 	if err != nil {
 		return err
