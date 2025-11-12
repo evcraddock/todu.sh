@@ -1,7 +1,7 @@
 package main
 
-import "fmt"
+import "github.com/evcraddock/todu.sh/cmd/todu/cmd"
 
 func main() {
-	fmt.Println("todu.sh - Task management across multiple systems")
+	cmd.Execute()
 }
