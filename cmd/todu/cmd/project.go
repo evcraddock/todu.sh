@@ -182,13 +182,18 @@ func runProjectList(cmd *cobra.Command, args []string) error {
 			systemName = fmt.Sprintf("(unknown:%d)", project.SystemID)
 		}
 
+		syncStrategy := project.SyncStrategy
+		if syncStrategy == "" {
+			syncStrategy = "bidirectional"
+		}
+
 		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%s\n",
 			project.ID,
 			truncateString(project.Name, 30),
 			systemName,
 			truncateString(project.ExternalID, 30),
 			project.Status,
-			project.SyncStrategy,
+			syncStrategy,
 		)
 	}
 
@@ -279,10 +284,15 @@ func runProjectShow(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Description: %s\n", *project.Description)
 	}
 
+	syncStrategy := project.SyncStrategy
+	if syncStrategy == "" {
+		syncStrategy = "bidirectional"
+	}
+
 	fmt.Printf("System: %s (ID: %d)\n", system.Identifier, system.ID)
 	fmt.Printf("External ID: %s\n", project.ExternalID)
 	fmt.Printf("Status: %s\n", project.Status)
-	fmt.Printf("Sync Strategy: %s\n", project.SyncStrategy)
+	fmt.Printf("Sync Strategy: %s\n", syncStrategy)
 	fmt.Printf("\nCreated: %s\n", project.CreatedAt.Format("2006-01-02 15:04:05"))
 	fmt.Printf("Updated: %s\n", project.UpdatedAt.Format("2006-01-02 15:04:05"))
 
