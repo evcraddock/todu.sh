@@ -1,7 +1,9 @@
 # Makefile for todu.sh
 
 # Variables
+BUILD_DIR=.build
 BINARY_NAME=todu
+BINARY_PATH=$(BUILD_DIR)/$(BINARY_NAME)
 MAIN_PATH=./cmd/todu
 GO=go
 GOFLAGS=
@@ -20,7 +22,8 @@ help: ## Show this help message
 
 .PHONY: build
 build: ## Build the binary
-	$(GO) build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BINARY_NAME) $(MAIN_PATH)
+	@mkdir -p $(BUILD_DIR)
+	$(GO) build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BINARY_PATH) $(MAIN_PATH)
 
 .PHONY: install
 install: ## Install the binary to GOPATH/bin
@@ -28,7 +31,7 @@ install: ## Install the binary to GOPATH/bin
 
 .PHONY: clean
 clean: ## Remove build artifacts
-	rm -f $(BINARY_NAME)
+	rm -rf $(BUILD_DIR)
 	$(GO) clean
 
 .PHONY: test

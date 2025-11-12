@@ -18,6 +18,7 @@ vendor/
 go.work
 
 # Build directories
+.build/
 bin/
 dist/
 
