@@ -428,7 +428,7 @@ func TestDeleteProject(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(server.URL)
-	err := client.DeleteProject(context.Background(), 1)
+	err := client.DeleteProject(context.Background(), 1, false)
 
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)

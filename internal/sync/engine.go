@@ -1,0 +1,291 @@
+package sync
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/evcraddock/todu.sh/internal/api"
+	"github.com/evcraddock/todu.sh/internal/registry"
+	"github.com/evcraddock/todu.sh/pkg/plugin"
+	"github.com/evcraddock/todu.sh/pkg/types"
+)
+
+// Engine orchestrates bidirectional synchronization between external systems and the Todu API.
+type Engine struct {
+	apiClient *api.Client
+	registry  *registry.Registry
+}
+
+// NewEngine creates a new sync engine with the given API client and plugin registry.
+func NewEngine(apiClient *api.Client, registry *registry.Registry) *Engine {
+	return &Engine{
+		apiClient: apiClient,
+		registry:  registry,
+	}
+}
+
+// Sync performs synchronization based on the provided options.
+// Returns a Result summarizing what was synced and any errors encountered.
+func (e *Engine) Sync(ctx context.Context, options Options) (*Result, error) {
+	startTime := time.Now()
+	result := &Result{}
+
+	// Get projects to sync
+	projects, err := e.getProjectsToSync(ctx, options)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get projects: %w", err)
+	}
+
+	if len(projects) == 0 {
+		log.Println("No projects to sync")
+		return result, nil
+	}
+
+	log.Printf("Syncing %d project(s)...", len(projects))
+
+	// Sync each project
+	for _, project := range projects {
+		pr := e.syncProject(ctx, project, options)
+		result.AddProjectResult(pr)
+	}
+
+	result.Duration = time.Since(startTime)
+	return result, nil
+}
+
+// getProjectsToSync retrieves the list of projects to sync based on options.
+func (e *Engine) getProjectsToSync(ctx context.Context, options Options) ([]*types.Project, error) {
+	// If specific project IDs are provided, fetch those
+	if len(options.ProjectIDs) > 0 {
+		projects := make([]*types.Project, 0, len(options.ProjectIDs))
+		for _, id := range options.ProjectIDs {
+			project, err := e.apiClient.GetProject(ctx, id)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get project %d: %w", id, err)
+			}
+			projects = append(projects, project)
+		}
+		return projects, nil
+	}
+
+	// Otherwise, list projects (optionally filtered by system)
+	return e.apiClient.ListProjects(ctx, options.SystemID)
+}
+
+// syncProject synchronizes a single project.
+func (e *Engine) syncProject(ctx context.Context, project *types.Project, options Options) ProjectResult {
+	pr := ProjectResult{
+		ProjectID:   project.ID,
+		ProjectName: project.Name,
+		Errors:      []error{},
+	}
+
+	log.Printf("Syncing project %q (ID: %d)...", project.Name, project.ID)
+
+	// Determine sync strategy
+	strategy := e.determineStrategy(project, options)
+	log.Printf("  Using strategy: %s", strategy)
+
+	// Get system for project
+	system, err := e.apiClient.GetSystem(ctx, project.SystemID)
+	if err != nil {
+		pr.Errors = append(pr.Errors, fmt.Errorf("failed to get system: %w", err))
+		return pr
+	}
+
+	// Create plugin instance
+	pluginConfig, err := registry.LoadPluginConfig(system.Identifier)
+	if err != nil {
+		pr.Errors = append(pr.Errors, fmt.Errorf("failed to load plugin config: %w", err))
+		return pr
+	}
+	p, err := e.registry.Create(system.Identifier, pluginConfig)
+	if err != nil {
+		pr.Errors = append(pr.Errors, fmt.Errorf("failed to create plugin: %w", err))
+		return pr
+	}
+
+	// Validate plugin configuration
+	if err := p.ValidateConfig(); err != nil {
+		pr.Errors = append(pr.Errors, fmt.Errorf("plugin not configured: %w", err))
+		return pr
+	}
+
+	// Perform sync based on strategy
+	switch strategy {
+	case StrategyPull:
+		e.syncPull(ctx, project, p, options.DryRun, &pr)
+	case StrategyPush:
+		e.syncPush(ctx, project, p, options.DryRun, &pr)
+	case StrategyBidirectional:
+		e.syncPull(ctx, project, p, options.DryRun, &pr)
+		e.syncPush(ctx, project, p, options.DryRun, &pr)
+	default:
+		pr.Errors = append(pr.Errors, fmt.Errorf("unknown strategy: %s", strategy))
+	}
+
+	if len(pr.Errors) == 0 {
+		log.Printf("  ✓ Project synced: %d created, %d updated, %d skipped", pr.Created, pr.Updated, pr.Skipped)
+	} else {
+		log.Printf("  ✗ Project sync completed with %d error(s)", len(pr.Errors))
+	}
+
+	return pr
+}
+
+// determineStrategy determines which sync strategy to use for a project.
+func (e *Engine) determineStrategy(project *types.Project, options Options) Strategy {
+	// Use override if provided
+	if options.StrategyOverride != nil {
+		return *options.StrategyOverride
+	}
+
+	// Otherwise use project's configured strategy
+	return Strategy(project.SyncStrategy)
+}
+
+// syncPull pulls tasks from external system to Todu.
+func (e *Engine) syncPull(ctx context.Context, project *types.Project, p plugin.Plugin, dryRun bool, pr *ProjectResult) {
+	// Fetch tasks from external system
+	externalTasks, err := p.FetchTasks(ctx, &project.ExternalID, nil)
+	if err != nil {
+		pr.Errors = append(pr.Errors, fmt.Errorf("failed to fetch external tasks: %w", err))
+		return
+	}
+
+	// Fetch existing tasks from Todu API
+	toduTasks, err := e.apiClient.ListTasks(ctx, &project.ID)
+	if err != nil {
+		pr.Errors = append(pr.Errors, fmt.Errorf("failed to fetch Todu tasks: %w", err))
+		return
+	}
+
+	// Build map of Todu tasks by external_id for quick lookup
+	toduTaskMap := make(map[string]*types.Task)
+	for _, task := range toduTasks {
+		if task.ExternalID != "" {
+			toduTaskMap[task.ExternalID] = task
+		}
+	}
+
+	// Process each external task
+	for _, externalTask := range externalTasks {
+		if externalTask.ExternalID == "" {
+			log.Printf("  WARNING: External task has no external_id, skipping")
+			pr.Skipped++
+			continue
+		}
+
+		toduTask, exists := toduTaskMap[externalTask.ExternalID]
+
+		if !exists {
+			// Task doesn't exist in Todu, create it
+			if !dryRun {
+				taskCreate := &types.TaskCreate{
+					ExternalID:  externalTask.ExternalID,
+					SourceURL:   externalTask.SourceURL,
+					Title:       externalTask.Title,
+					Description: externalTask.Description,
+					ProjectID:   project.ID,
+					Status:      externalTask.Status,
+					Priority:    externalTask.Priority,
+					DueDate:     externalTask.DueDate,
+					Labels:      externalTask.Labels,
+					Assignees:   externalTask.Assignees,
+				}
+				_, err := e.apiClient.CreateTask(ctx, taskCreate)
+				if err != nil {
+					pr.Errors = append(pr.Errors, fmt.Errorf("failed to create task %q: %w", externalTask.Title, err))
+					continue
+				}
+			}
+			log.Printf("  → Created task: %s", externalTask.Title)
+			pr.Created++
+		} else if NeedsUpdate(externalTask, toduTask) {
+			// External task is newer, update Todu task
+			if !dryRun {
+				taskUpdate := &types.TaskUpdate{
+					Title:       &externalTask.Title,
+					Description: externalTask.Description,
+					Status:      &externalTask.Status,
+					Priority:    externalTask.Priority,
+					DueDate:     externalTask.DueDate,
+					Labels:      externalTask.Labels,
+					Assignees:   externalTask.Assignees,
+				}
+				_, err := e.apiClient.UpdateTask(ctx, toduTask.ID, taskUpdate)
+				if err != nil {
+					pr.Errors = append(pr.Errors, fmt.Errorf("failed to update task %q: %w", externalTask.Title, err))
+					continue
+				}
+			}
+			log.Printf("  ↻ Updated task: %s", externalTask.Title)
+			pr.Updated++
+		} else {
+			// Todu task is up to date
+			pr.Skipped++
+		}
+	}
+}
+
+// syncPush pushes tasks from Todu to external system.
+func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.Plugin, dryRun bool, pr *ProjectResult) {
+	// Fetch tasks from Todu API
+	toduTasks, err := e.apiClient.ListTasks(ctx, &project.ID)
+	if err != nil {
+		pr.Errors = append(pr.Errors, fmt.Errorf("failed to fetch Todu tasks: %w", err))
+		return
+	}
+
+	// Only push tasks that have an external_id (were previously synced)
+	for _, toduTask := range toduTasks {
+		if toduTask.ExternalID == "" {
+			// Skip tasks without external_id (not synced from external system)
+			continue
+		}
+
+		// Fetch current state from external system
+		externalTask, err := p.FetchTask(ctx, &project.ExternalID, toduTask.ExternalID)
+		if err != nil {
+			// If task not found in external system, skip (may have been deleted)
+			if err == plugin.ErrNotSupported {
+				pr.Skipped++
+				continue
+			}
+			pr.Errors = append(pr.Errors, fmt.Errorf("failed to fetch external task %q: %w", toduTask.ExternalID, err))
+			continue
+		}
+
+		// Check if Todu task is newer
+		if NeedsUpdate(toduTask, externalTask) {
+			// Todu task is newer, push to external system
+			if !dryRun {
+				taskUpdate := &types.TaskUpdate{
+					Title:       &toduTask.Title,
+					Description: toduTask.Description,
+					Status:      &toduTask.Status,
+					Priority:    toduTask.Priority,
+					DueDate:     toduTask.DueDate,
+					Labels:      toduTask.Labels,
+					Assignees:   toduTask.Assignees,
+				}
+				_, err := p.UpdateTask(ctx, &project.ExternalID, toduTask.ExternalID, taskUpdate)
+				if err != nil {
+					if err == plugin.ErrNotSupported {
+						pr.Skipped++
+						continue
+					}
+					pr.Errors = append(pr.Errors, fmt.Errorf("failed to push task %q: %w", toduTask.Title, err))
+					continue
+				}
+			}
+			log.Printf("  ← Pushed task: %s", toduTask.Title)
+			pr.Updated++
+		} else {
+			// External task is up to date
+			pr.Skipped++
+		}
+	}
+}
