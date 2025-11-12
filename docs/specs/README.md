@@ -36,7 +36,7 @@ This directory contains individual specification files for each unit of work. Ea
 
 ### Phase 4: Project Management (40 min total)
 
-- 🔲 [Unit 4.1: Project Management Commands](./unit-4.1-project-commands.md) (40 min)
+- ✅ [Unit 4.1: Project Management Commands](./unit-4.1-project-commands.md) (40 min)
 
 ### Phase 5: Sync Engine (90 min total)
 
@@ -58,8 +58,8 @@ This directory contains individual specification files for each unit of work. Ea
 
 ## Total Estimated Time
 
-- ✅ Completed: ~265 minutes
-- 🔲 Remaining: ~350 minutes (~5.83 hours)
+- ✅ Completed: ~305 minutes (~5.08 hours)
+- 🔲 Remaining: ~310 minutes (~5.17 hours)
 - **Total**: ~615 minutes (~10 hours)
 
 ## How to Use
