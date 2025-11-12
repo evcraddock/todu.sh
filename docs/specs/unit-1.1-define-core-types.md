@@ -1,5 +1,8 @@
 # Unit 1.1: Define Core Types
 
+**Status**: ✅ COMPLETE
+
+
 **Goal**: Create shared type definitions matching Todu API schema
 
 **Prerequisites**: Unit 0.3 complete

@@ -1,5 +1,8 @@
 # Unit 0.3: Add Version Command with Cobra
 
+**Status**: ✅ COMPLETE
+
+
 **Goal**: Set up Cobra CLI framework with version command
 
 **Prerequisites**: Unit 0.2 complete

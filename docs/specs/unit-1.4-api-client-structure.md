@@ -1,5 +1,8 @@
 # Unit 1.4: Basic API Client Structure
 
+**Status**: ✅ COMPLETE
+
+
 **Goal**: Create HTTP client wrapper for Todu API
 
 **Prerequisites**: Unit 1.3 complete
