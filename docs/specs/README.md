@@ -25,7 +25,7 @@ This directory contains individual specification files for each unit of work. Ea
 
 ### Phase 2: Plugin Interface and Registry (75 min total)
 
-- 🔲 [Unit 2.1: Plugin Interface Definition](./unit-2.1-plugin-interface.md) (20 min)
+- ✅ [Unit 2.1: Plugin Interface Definition](./unit-2.1-plugin-interface.md) (20 min)
 - 🔲 [Unit 2.2: Plugin Registry](./unit-2.2-plugin-registry.md) (25 min)
 - 🔲 [Unit 2.3: System Management Commands](./unit-2.3-system-commands.md) (30 min)
 
@@ -58,8 +58,8 @@ This directory contains individual specification files for each unit of work. Ea
 
 ## Total Estimated Time
 
-- ✅ Completed: ~130 minutes
-- 🔲 Remaining: ~485 minutes (~8 hours)
+- ✅ Completed: ~150 minutes
+- 🔲 Remaining: ~465 minutes (~7.75 hours)
 - **Total**: ~615 minutes (~10 hours)
 
 ## How to Use
