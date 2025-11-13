@@ -52,7 +52,7 @@ func issueToTask(issue *github.Issue, repoOwner, repoName string) *types.Task {
 	}
 
 	// Map status
-	status := "open"
+	status := "active"
 	if issue.GetState() == "closed" {
 		status = "done"
 	}
@@ -188,7 +188,7 @@ func taskUpdateToIssueRequest(task *types.TaskUpdate) *github.IssueRequest {
 	// Handle status change
 	if task.Status != nil {
 		state := "open"
-		if *task.Status == "done" {
+		if *task.Status == "done" || *task.Status == "cancelled" {
 			state = "closed"
 		}
 		req.State = &state
