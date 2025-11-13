@@ -106,7 +106,8 @@ func runSync(cmd *cobra.Command, args []string) error {
 	// Display dry run notice
 	if syncDryRun {
 		fmt.Println("=== DRY RUN MODE ===")
-		fmt.Println("No changes will be made\n")
+		fmt.Println("No changes will be made")
+		fmt.Println()
 	}
 
 	// Run sync
@@ -199,9 +200,11 @@ func runSyncStatus(cmd *cobra.Command, args []string) error {
 
 func displaySyncResults(result *sync.Result, dryRun bool) {
 	if dryRun {
-		fmt.Println("=== DRY RUN RESULTS ===\n")
+		fmt.Println("=== DRY RUN RESULTS ===")
+		fmt.Println()
 	} else {
-		fmt.Println("=== SYNC RESULTS ===\n")
+		fmt.Println("=== SYNC RESULTS ===")
+		fmt.Println()
 	}
 
 	// Display per-project results
