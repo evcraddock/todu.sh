@@ -36,11 +36,11 @@ projects that need attention.`,
 }
 
 var (
-	syncProject     int
-	syncSystem      int
-	syncAll         bool
-	syncStrategy    string
-	syncDryRun      bool
+	syncProject      string
+	syncSystem       int
+	syncAll          bool
+	syncStrategy     string
+	syncDryRun       bool
 	syncStatusSystem int
 )
 
@@ -49,7 +49,7 @@ func init() {
 	syncCmd.AddCommand(syncStatusCmd)
 
 	// Sync flags
-	syncCmd.Flags().IntVarP(&syncProject, "project", "p", 0, "Sync specific project by ID")
+	syncCmd.Flags().StringVarP(&syncProject, "project", "p", "", "Sync specific project by ID or name")
 	syncCmd.Flags().IntVarP(&syncSystem, "system", "s", 0, "Sync all projects for a system")
 	syncCmd.Flags().BoolVarP(&syncAll, "all", "a", false, "Sync all projects (default if no filters)")
 	syncCmd.Flags().StringVar(&syncStrategy, "strategy", "", "Override sync strategy (pull/push/bidirectional)")
@@ -71,6 +71,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 
 	// Create API client
 	apiClient := api.NewClient(cfg.APIURL)
+	ctx := context.Background()
 
 	// Create sync engine
 	engine := sync.NewEngine(apiClient, registry.Default)
@@ -90,8 +91,13 @@ func runSync(cmd *cobra.Command, args []string) error {
 	}
 
 	// Handle project/system filters
-	if syncProject > 0 {
-		options.ProjectIDs = []int{syncProject}
+	if syncProject != "" {
+		// Resolve project ID from name or ID
+		projectID, err := resolveProjectID(ctx, apiClient, syncProject)
+		if err != nil {
+			return fmt.Errorf("failed to resolve project: %w", err)
+		}
+		options.ProjectIDs = []int{projectID}
 	} else if syncSystem > 0 {
 		options.SystemID = &syncSystem
 	}
@@ -104,7 +110,6 @@ func runSync(cmd *cobra.Command, args []string) error {
 	}
 
 	// Run sync
-	ctx := context.Background()
 	result, err := engine.Sync(ctx, options)
 	if err != nil {
 		return fmt.Errorf("sync failed: %w", err)
@@ -274,3 +279,4 @@ func parseIntArg(arg string, name string) (int, error) {
 	}
 	return id, nil
 }
+
