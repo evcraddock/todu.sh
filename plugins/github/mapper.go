@@ -15,9 +15,22 @@ import (
 // Mappings:
 //   - GitHub Repository → Todu Project (external_id = "owner/repo")
 //   - GitHub Issue → Todu Task (external_id = issue number as string)
-//   - GitHub Issue State (open/closed) → Todu Status (open/done)
+//   - GitHub Issue State + StateReason → Todu Status (bidirectional with semantic preservation)
 //   - GitHub Labels → Todu Labels (priority extracted from priority:* labels)
 //   - GitHub Issue Comments → Todu Comments (1:1 mapping)
+//
+// Status Mapping (Todu → GitHub):
+//   - done       → state: "closed", state_reason: "completed"
+//   - cancelled  → state: "closed", state_reason: "not_planned"
+//   - active     → state: "open"
+//   - inprogress → state: "open"
+//   - waiting    → state: "open"
+//
+// Status Mapping (GitHub → Todu):
+//   - state: "closed", state_reason: "completed"   → done
+//   - state: "closed", state_reason: "not_planned" → cancelled
+//   - state: "closed", state_reason: null/other    → done (backward compatibility)
+//   - state: "open"                                → active
 //
 // Priority Mapping:
 //   - Labels matching "priority:high" → high priority
@@ -51,11 +64,8 @@ func issueToTask(issue *github.Issue, repoOwner, repoName string) *types.Task {
 		description = &body
 	}
 
-	// Map status
-	status := "active"
-	if issue.GetState() == "closed" {
-		status = "done"
-	}
+	// Map status using state and state_reason
+	status := mapGitHubStatusToTodu(issue.GetState(), issue.GetStateReason())
 
 	// Extract priority from labels
 	priority := extractPriority(issue.Labels)
@@ -132,11 +142,50 @@ func extractAssignees(assignees []*github.User) []types.Assignee {
 // commentToComment converts a GitHub issue comment to a Todu comment.
 func commentToComment(comment *github.IssueComment) *types.Comment {
 	return &types.Comment{
-		Content:   comment.GetBody(),
-		Author:    comment.User.GetLogin(),
-		CreatedAt: comment.GetCreatedAt().Time,
-		UpdatedAt: comment.GetUpdatedAt().Time,
+		ExternalID: fmt.Sprintf("%d", comment.GetID()),
+		Content:    comment.GetBody(),
+		Author:     comment.User.GetLogin(),
+		CreatedAt:  comment.GetCreatedAt().Time,
+		UpdatedAt:  comment.GetUpdatedAt().Time,
 	}
+}
+
+// mapToduStatusToGitHub maps todu status to GitHub state and state_reason.
+//
+// Mappings:
+//   - done       → state: "closed", state_reason: "completed"
+//   - cancelled  → state: "closed", state_reason: "not_planned"
+//   - active     → state: "open", state_reason: ""
+//   - inprogress → state: "open", state_reason: ""
+//   - waiting    → state: "open", state_reason: ""
+func mapToduStatusToGitHub(status string) (state string, stateReason string) {
+	switch status {
+	case "done":
+		return "closed", "completed"
+	case "cancelled":
+		return "closed", "not_planned"
+	default:
+		// active, inprogress, waiting, and any other status map to open
+		return "open", ""
+	}
+}
+
+// mapGitHubStatusToTodu maps GitHub state and state_reason to todu status.
+//
+// Mappings:
+//   - state: "closed", state_reason: "completed"   → done
+//   - state: "closed", state_reason: "not_planned" → cancelled
+//   - state: "closed", state_reason: ""            → done (backward compatibility)
+//   - state: "open"                                → active
+func mapGitHubStatusToTodu(state string, stateReason string) string {
+	if state == "closed" {
+		if stateReason == "not_planned" {
+			return "cancelled"
+		}
+		// Default closed issues to "done" (includes "completed" and nil for backward compatibility)
+		return "done"
+	}
+	return "active"
 }
 
 // taskCreateToIssueRequest converts a Todu TaskCreate to a GitHub IssueRequest.
@@ -187,11 +236,11 @@ func taskUpdateToIssueRequest(task *types.TaskUpdate) *github.IssueRequest {
 
 	// Handle status change
 	if task.Status != nil {
-		state := "open"
-		if *task.Status == "done" || *task.Status == "cancelled" {
-			state = "closed"
-		}
+		state, stateReason := mapToduStatusToGitHub(*task.Status)
 		req.State = &state
+		if stateReason != "" {
+			req.StateReason = &stateReason
+		}
 	}
 
 	// Build labels including priority

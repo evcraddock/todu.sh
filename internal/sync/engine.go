@@ -195,11 +195,13 @@ func (e *Engine) syncPull(ctx context.Context, project *types.Project, p plugin.
 					Labels:      externalTask.Labels,
 					Assignees:   externalTask.Assignees,
 				}
-				_, err := e.apiClient.CreateTask(ctx, taskCreate)
+				createdTask, err := e.apiClient.CreateTask(ctx, taskCreate)
 				if err != nil {
 					pr.Errors = append(pr.Errors, fmt.Errorf("failed to create task %q: %w", externalTask.Title, err))
 					continue
 				}
+				// Sync comments for newly created task
+				e.syncPullComments(ctx, project, p, createdTask, dryRun, pr)
 			}
 			log.Printf("  → Created task: %s", externalTask.Title)
 			pr.Created++
@@ -226,6 +228,11 @@ func (e *Engine) syncPull(ctx context.Context, project *types.Project, p plugin.
 		} else {
 			// Todu task is up to date
 			pr.Skipped++
+		}
+
+		// Sync comments for existing tasks
+		if exists && !dryRun {
+			e.syncPullComments(ctx, project, p, toduTask, dryRun, pr)
 		}
 	}
 }
@@ -321,5 +328,144 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 			// External task is up to date
 			pr.Skipped++
 		}
+
+		// Sync comments for tasks being pushed
+		if toduTask.ExternalID != "" && !dryRun {
+			e.syncPushComments(ctx, project, p, toduTask, dryRun, pr)
+		}
+	}
+}
+
+// syncPullComments pulls comments from external system to Todu for a specific task.
+func (e *Engine) syncPullComments(ctx context.Context, project *types.Project, p plugin.Plugin, toduTask *types.Task, dryRun bool, pr *ProjectResult) {
+	// Skip if task has no external_id
+	if toduTask.ExternalID == "" {
+		return
+	}
+
+	// Fetch comments from external system
+	externalComments, err := p.FetchComments(ctx, &project.ExternalID, toduTask.ExternalID)
+	if err != nil {
+		// If plugin doesn't support comments, silently skip
+		if err == plugin.ErrNotSupported {
+			return
+		}
+		pr.Errors = append(pr.Errors, fmt.Errorf("failed to fetch comments for task %s: %w", toduTask.Title, err))
+		return
+	}
+
+	// Fetch existing comments from Todu API
+	toduComments, err := e.apiClient.ListComments(ctx, toduTask.ID)
+	if err != nil {
+		pr.Errors = append(pr.Errors, fmt.Errorf("failed to fetch Todu comments for task %s: %w", toduTask.Title, err))
+		return
+	}
+
+	// Build map of Todu comments by external_id for deduplication
+	toduCommentMap := make(map[string]*types.Comment)
+	for _, comment := range toduComments {
+		if comment.ExternalID != "" {
+			toduCommentMap[comment.ExternalID] = comment
+		}
+	}
+
+	// Process each external comment
+	for _, externalComment := range externalComments {
+		if externalComment.ExternalID == "" {
+			log.Printf("    WARNING: External comment has no external_id, skipping")
+			continue
+		}
+
+		_, exists := toduCommentMap[externalComment.ExternalID]
+		if !exists {
+			// Comment doesn't exist in Todu, create it
+			if !dryRun {
+				commentCreate := &types.CommentCreate{
+					TaskID:     toduTask.ID,
+					ExternalID: externalComment.ExternalID,
+					Content:    externalComment.Content,
+					Author:     externalComment.Author,
+				}
+				_, err := e.apiClient.CreateComment(ctx, commentCreate)
+				if err != nil {
+					pr.Errors = append(pr.Errors, fmt.Errorf("failed to create comment on task %s: %w", toduTask.Title, err))
+					continue
+				}
+			}
+			log.Printf("    → Synced comment from %s", externalComment.Author)
+		}
+		// Note: Comments are typically immutable after creation, so we don't update them
+	}
+}
+
+// syncPushComments pushes comments from Todu to external system for a specific task.
+func (e *Engine) syncPushComments(ctx context.Context, project *types.Project, p plugin.Plugin, toduTask *types.Task, dryRun bool, pr *ProjectResult) {
+	// Skip if task has no external_id
+	if toduTask.ExternalID == "" {
+		return
+	}
+
+	// Fetch comments from Todu API
+	toduComments, err := e.apiClient.ListComments(ctx, toduTask.ID)
+	if err != nil {
+		pr.Errors = append(pr.Errors, fmt.Errorf("failed to fetch Todu comments for task %s: %w", toduTask.Title, err))
+		return
+	}
+
+	// Fetch external comments to check what's already synced
+	externalComments, err := p.FetchComments(ctx, &project.ExternalID, toduTask.ExternalID)
+	if err != nil {
+		// If plugin doesn't support comments, silently skip
+		if err == plugin.ErrNotSupported {
+			return
+		}
+		pr.Errors = append(pr.Errors, fmt.Errorf("failed to fetch external comments for task %s: %w", toduTask.Title, err))
+		return
+	}
+
+	// Build map of external comments by external_id for deduplication
+	externalCommentMap := make(map[string]*types.Comment)
+	for _, comment := range externalComments {
+		if comment.ExternalID != "" {
+			externalCommentMap[comment.ExternalID] = comment
+		}
+	}
+
+	// Process each Todu comment
+	for _, toduComment := range toduComments {
+		// Skip comments that already have external_id (already synced)
+		if toduComment.ExternalID != "" {
+			continue
+		}
+
+		// Create comment in external system
+		if !dryRun {
+			commentCreate := &types.CommentCreate{
+				Content: toduComment.Content,
+				Author:  toduComment.Author,
+			}
+			createdComment, err := p.CreateComment(ctx, &project.ExternalID, toduTask.ExternalID, commentCreate)
+			if err != nil {
+				if err == plugin.ErrNotSupported {
+					return
+				}
+				pr.Errors = append(pr.Errors, fmt.Errorf("failed to push comment to task %s: %w", toduTask.Title, err))
+				continue
+			}
+
+			// Update the Todu comment with the external_id
+			if createdComment.ExternalID != "" {
+				commentUpdate := &types.CommentUpdate{
+					Content:    &toduComment.Content,
+					ExternalID: &createdComment.ExternalID,
+				}
+				_, err = e.apiClient.UpdateComment(ctx, toduComment.ID, commentUpdate)
+				if err != nil {
+					pr.Errors = append(pr.Errors, fmt.Errorf("failed to update comment external_id for task %s: %w", toduTask.Title, err))
+					// Continue anyway - comment was created in external system
+				}
+			}
+		}
+		log.Printf("    ← Pushed comment from %s", toduComment.Author)
 	}
 }

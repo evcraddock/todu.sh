@@ -365,7 +365,8 @@ func (c *Client) GetComment(ctx context.Context, id int) (*types.Comment, error)
 
 // CreateComment creates a new comment
 func (c *Client) CreateComment(ctx context.Context, comment *types.CommentCreate) (*types.Comment, error) {
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/comments/", comment)
+	path := fmt.Sprintf("/api/v1/tasks/%d/comments", comment.TaskID)
+	resp, err := c.doRequest(ctx, http.MethodPost, path, comment)
 	if err != nil {
 		return nil, err
 	}
@@ -376,6 +377,22 @@ func (c *Client) CreateComment(ctx context.Context, comment *types.CommentCreate
 	}
 
 	return &created, nil
+}
+
+// UpdateComment updates an existing comment
+func (c *Client) UpdateComment(ctx context.Context, id int, comment *types.CommentUpdate) (*types.Comment, error) {
+	path := fmt.Sprintf("/api/v1/comments/%d", id)
+	resp, err := c.doRequest(ctx, http.MethodPut, path, comment)
+	if err != nil {
+		return nil, err
+	}
+
+	var updated types.Comment
+	if err := parseResponse(resp, &updated); err != nil {
+		return nil, err
+	}
+
+	return &updated, nil
 }
 
 // DeleteComment deletes a comment

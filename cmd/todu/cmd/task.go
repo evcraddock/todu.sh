@@ -91,7 +91,7 @@ var (
 	// List flags
 	taskListStatus     string
 	taskListPriority   string
-	taskListProject    int
+	taskListProject    string
 	taskListAssignee   string
 	taskListLabels     []string
 	taskListSearch     string
@@ -143,7 +143,7 @@ func init() {
 	// List flags
 	taskListCmd.Flags().StringVar(&taskListStatus, "status", "", "Filter by status")
 	taskListCmd.Flags().StringVar(&taskListPriority, "priority", "", "Filter by priority")
-	taskListCmd.Flags().IntVarP(&taskListProject, "project", "p", 0, "Filter by project ID")
+	taskListCmd.Flags().StringVarP(&taskListProject, "project", "p", "", "Filter by project ID or name")
 	taskListCmd.Flags().StringVar(&taskListAssignee, "assignee", "", "Filter by assignee")
 	taskListCmd.Flags().StringSliceVar(&taskListLabels, "label", []string{}, "Filter by label (repeatable)")
 	taskListCmd.Flags().StringVar(&taskListSearch, "search", "", "Full-text search")
@@ -195,11 +195,14 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 	apiClient := api.NewClient(cfg.APIURL)
 	ctx := context.Background()
 
-	// For now, we'll just list all tasks and filter client-side
-	// In the future, the API could support query parameters for filtering
+	// Resolve project ID from name or ID if provided
 	var projectIDPtr *int
-	if taskListProject > 0 {
-		projectIDPtr = &taskListProject
+	if taskListProject != "" {
+		projectID, err := resolveProjectID(ctx, apiClient, taskListProject)
+		if err != nil {
+			return fmt.Errorf("failed to resolve project: %w", err)
+		}
+		projectIDPtr = &projectID
 	}
 
 	tasks, err := apiClient.ListTasks(ctx, projectIDPtr)
@@ -220,7 +223,7 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 		return displayTasksJSON(tasks)
 	}
 
-	return displayTasksTable(tasks)
+	return displayTasksTable(ctx, apiClient, tasks)
 }
 
 func filterTasks(tasks []*types.Task) []*types.Task {
@@ -309,11 +312,21 @@ func filterTasks(tasks []*types.Task) []*types.Task {
 	return filtered
 }
 
-func displayTasksTable(tasks []*types.Task) error {
+func displayTasksTable(ctx context.Context, apiClient *api.Client, tasks []*types.Task) error {
 	if len(tasks) == 0 {
 		fmt.Println("No tasks found")
 		return nil
 	}
+
+	// Fetch projects for name lookup
+	projectNames := make(map[int]string)
+	projects, err := apiClient.ListProjects(ctx, nil)
+	if err == nil {
+		for _, p := range projects {
+			projectNames[p.ID] = p.Name
+		}
+	}
+	// If fetch fails, we'll fall back to showing IDs
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tPRIORITY\tPROJECT\tDUE DATE")
@@ -330,12 +343,18 @@ func displayTasksTable(tasks []*types.Task) error {
 			dueDate = task.DueDate.Format("2006-01-02")
 		}
 
-		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%d\t%s\n",
+		// Use project name if available, otherwise fall back to ID
+		projectDisplay := projectNames[task.ProjectID]
+		if projectDisplay == "" {
+			projectDisplay = fmt.Sprintf("%d", task.ProjectID)
+		}
+
+		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%s\n",
 			task.ID,
 			truncate(task.Title, 40),
 			task.Status,
 			priority,
-			task.ProjectID,
+			projectDisplay,
 			dueDate,
 		)
 	}

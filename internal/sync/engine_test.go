@@ -153,6 +153,47 @@ func handleMockAPI(t *testing.T, w http.ResponseWriter, r *http.Request) {
 		}
 		json.NewEncoder(w).Encode(task)
 
+	case r.Method == "GET" && r.URL.Path == "/api/v1/tasks/1/comments":
+		// List comments for task
+		comments := []*types.Comment{}
+		json.NewEncoder(w).Encode(comments)
+
+	case r.Method == "POST" && r.URL.Path == "/api/v1/tasks/1/comments":
+		// Create comment
+		var commentCreate types.CommentCreate
+		if err := json.NewDecoder(r.Body).Decode(&commentCreate); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		comment := &types.Comment{
+			ID:         1,
+			TaskID:     commentCreate.TaskID,
+			ExternalID: commentCreate.ExternalID,
+			Content:    commentCreate.Content,
+			Author:     commentCreate.Author,
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
+		}
+		json.NewEncoder(w).Encode(comment)
+
+	case r.Method == "PUT" && r.URL.Path == "/api/v1/comments/1":
+		// Update comment
+		var commentUpdate types.CommentUpdate
+		if err := json.NewDecoder(r.Body).Decode(&commentUpdate); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		comment := &types.Comment{
+			ID:         1,
+			TaskID:     1,
+			ExternalID: *commentUpdate.ExternalID,
+			Content:    "Test comment",
+			Author:     "test-user",
+			CreatedAt:  time.Now().Add(-1 * time.Hour),
+			UpdatedAt:  time.Now(),
+		}
+		json.NewEncoder(w).Encode(comment)
+
 	default:
 		http.Error(w, "Not found", http.StatusNotFound)
 	}
