@@ -130,6 +130,9 @@ func (e *Engine) syncProject(ctx context.Context, project *types.Project, option
 		log.Printf("  ✓ Project synced: %d created, %d updated, %d skipped", pr.Created, pr.Updated, pr.Skipped)
 	} else {
 		log.Printf("  ✗ Project sync completed with %d error(s)", len(pr.Errors))
+		for i, err := range pr.Errors {
+			log.Printf("    Error %d: %v", i+1, err)
+		}
 	}
 
 	return pr

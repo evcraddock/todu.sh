@@ -132,8 +132,8 @@ func runDaemonStart(cmd *cobra.Command, args []string) error {
 	// Create API client
 	apiClient := api.NewClient(cfg.APIURL)
 
-	// Create plugin registry
-	pluginRegistry := registry.New()
+	// Use the global plugin registry (with plugins already registered)
+	pluginRegistry := registry.Default
 
 	// Create sync engine
 	syncEngine := sync.NewEngine(apiClient, pluginRegistry)
