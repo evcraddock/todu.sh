@@ -19,7 +19,7 @@ A command-line tool for synchronizing tasks across multiple systems (GitHub Issu
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/todu.sh
+git clone https://github.com/evcraddock/todu.sh
 cd todu.sh
 
 # Build the CLI
