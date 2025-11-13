@@ -82,11 +82,11 @@ func TestTaskCreateMarshalJSON(t *testing.T) {
 		Status:      "open",
 		Priority:    &priority,
 		DueDate:     &now,
-		Labels: []Label{
-			{ID: 1, Name: "bug"},
+		Labels: []string{
+			"bug",
 		},
-		Assignees: []Assignee{
-			{ID: 1, Name: "John Doe"},
+		Assignees: []string{
+			"John Doe",
 		},
 	}
 

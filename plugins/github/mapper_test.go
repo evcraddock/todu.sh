@@ -265,3 +265,119 @@ func TestTaskUpdateToIssueRequest_NoStatusChange(t *testing.T) {
 		t.Errorf("Expected StateReason to be nil when status is not updated, got %s", *req.StateReason)
 	}
 }
+
+// TestExtractPriority tests priority extraction and normalization from GitHub labels.
+func TestExtractPriority(t *testing.T) {
+	tests := []struct {
+		name             string
+		labels           []*github.Label
+		expectedPriority *string
+	}{
+		{
+			name: "valid high priority",
+			labels: []*github.Label{
+				{Name: github.String("priority:high")},
+			},
+			expectedPriority: github.String("high"),
+		},
+		{
+			name: "valid medium priority",
+			labels: []*github.Label{
+				{Name: github.String("priority:medium")},
+			},
+			expectedPriority: github.String("medium"),
+		},
+		{
+			name: "valid low priority",
+			labels: []*github.Label{
+				{Name: github.String("priority:low")},
+			},
+			expectedPriority: github.String("low"),
+		},
+		{
+			name: "invalid urgent priority maps to high",
+			labels: []*github.Label{
+				{Name: github.String("priority:urgent")},
+			},
+			expectedPriority: github.String("high"),
+		},
+		{
+			name: "invalid critical priority maps to high",
+			labels: []*github.Label{
+				{Name: github.String("priority:critical")},
+			},
+			expectedPriority: github.String("high"),
+		},
+		{
+			name: "invalid p0 priority maps to high",
+			labels: []*github.Label{
+				{Name: github.String("priority:p0")},
+			},
+			expectedPriority: github.String("high"),
+		},
+		{
+			name: "invalid blocker priority maps to high",
+			labels: []*github.Label{
+				{Name: github.String("priority:blocker")},
+			},
+			expectedPriority: github.String("high"),
+		},
+		{
+			name: "no priority label returns nil",
+			labels: []*github.Label{
+				{Name: github.String("bug")},
+				{Name: github.String("enhancement")},
+			},
+			expectedPriority: nil,
+		},
+		{
+			name: "case insensitive - uppercase HIGH",
+			labels: []*github.Label{
+				{Name: github.String("priority:HIGH")},
+			},
+			expectedPriority: github.String("high"),
+		},
+		{
+			name: "case insensitive - uppercase URGENT maps to high",
+			labels: []*github.Label{
+				{Name: github.String("priority:URGENT")},
+			},
+			expectedPriority: github.String("high"),
+		},
+		{
+			name: "mixed case - MixedCase priority maps to high",
+			labels: []*github.Label{
+				{Name: github.String("Priority:Medium")},
+			},
+			expectedPriority: github.String("medium"),
+		},
+		{
+			name: "priority label among other labels",
+			labels: []*github.Label{
+				{Name: github.String("bug")},
+				{Name: github.String("priority:low")},
+				{Name: github.String("needs-review")},
+			},
+			expectedPriority: github.String("low"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			priority := extractPriority(tt.labels)
+
+			if tt.expectedPriority == nil {
+				if priority != nil {
+					t.Errorf("Expected nil priority, got %s", *priority)
+				}
+			} else {
+				if priority == nil {
+					t.Fatalf("Expected priority %s, got nil", *tt.expectedPriority)
+				}
+				if *priority != *tt.expectedPriority {
+					t.Errorf("Expected priority %s, got %s", *tt.expectedPriority, *priority)
+				}
+			}
+		})
+	}
+}

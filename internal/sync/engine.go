@@ -195,8 +195,8 @@ func (e *Engine) syncPull(ctx context.Context, project *types.Project, p plugin.
 					Status:      externalTask.Status,
 					Priority:    externalTask.Priority,
 					DueDate:     externalTask.DueDate,
-					Labels:      externalTask.Labels,
-					Assignees:   externalTask.Assignees,
+					Labels:      extractLabelNames(externalTask.Labels),
+					Assignees:   extractAssigneeNames(externalTask.Assignees),
 				}
 				createdTask, err := e.apiClient.CreateTask(ctx, taskCreate)
 				if err != nil {
@@ -217,8 +217,8 @@ func (e *Engine) syncPull(ctx context.Context, project *types.Project, p plugin.
 					Status:      &externalTask.Status,
 					Priority:    externalTask.Priority,
 					DueDate:     externalTask.DueDate,
-					Labels:      externalTask.Labels,
-					Assignees:   externalTask.Assignees,
+					Labels:      extractLabelNames(externalTask.Labels),
+					Assignees:   extractAssigneeNames(externalTask.Assignees),
 				}
 				_, err := e.apiClient.UpdateTask(ctx, toduTask.ID, taskUpdate)
 				if err != nil {
@@ -260,8 +260,8 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 					Status:      toduTask.Status,
 					Priority:    toduTask.Priority,
 					DueDate:     toduTask.DueDate,
-					Labels:      toduTask.Labels,
-					Assignees:   toduTask.Assignees,
+					Labels:      extractLabelNames(toduTask.Labels),
+					Assignees:   extractAssigneeNames(toduTask.Assignees),
 				}
 				createdTask, err := p.CreateTask(ctx, &project.ExternalID, taskCreate)
 				if err != nil {
@@ -312,8 +312,8 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 					Status:      &toduTask.Status,
 					Priority:    toduTask.Priority,
 					DueDate:     toduTask.DueDate,
-					Labels:      toduTask.Labels,
-					Assignees:   toduTask.Assignees,
+					Labels:      extractLabelNames(toduTask.Labels),
+					Assignees:   extractAssigneeNames(toduTask.Assignees),
 				}
 				_, err := p.UpdateTask(ctx, &project.ExternalID, toduTask.ExternalID, taskUpdate)
 				if err != nil {
@@ -471,4 +471,34 @@ func (e *Engine) syncPushComments(ctx context.Context, project *types.Project, p
 		}
 		log.Printf("    ← Pushed comment from %s", toduComment.Author)
 	}
+}
+
+// extractLabelNames extracts just the label names as strings from a slice of Label structs.
+// This is needed because the API expects label names as strings, not Label objects.
+func extractLabelNames(labels []types.Label) []string {
+	if labels == nil {
+		return nil
+	}
+	result := make([]string, 0, len(labels))
+	for _, label := range labels {
+		if label.Name != "" {
+			result = append(result, label.Name)
+		}
+	}
+	return result
+}
+
+// extractAssigneeNames extracts just the assignee names as strings from a slice of Assignee structs.
+// This is needed because the API expects assignee names as strings, not Assignee objects.
+func extractAssigneeNames(assignees []types.Assignee) []string {
+	if assignees == nil {
+		return nil
+	}
+	result := make([]string, 0, len(assignees))
+	for _, assignee := range assignees {
+		if assignee.Name != "" {
+			result = append(result, assignee.Name)
+		}
+	}
+	return result
 }

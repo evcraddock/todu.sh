@@ -36,7 +36,11 @@ import (
 //   - Labels matching "priority:high" → high priority
 //   - Labels matching "priority:medium" → medium priority
 //   - Labels matching "priority:low" → low priority
+//   - Labels matching "priority:*" (invalid values) → high priority (e.g., urgent, critical, p0)
 //   - No priority label → no priority set
+//
+// Note: Invalid priority values are normalized to "high" to prevent accidental deprioritization
+// and to increase visibility so users are more likely to correct the labels in GitHub.
 
 // repoToProject converts a GitHub repository to a Todu project.
 func repoToProject(repo *github.Repository) *types.Project {
@@ -100,13 +104,25 @@ func issueToTask(issue *github.Issue, repoOwner, repoName string) *types.Task {
 	}
 }
 
-// extractPriority extracts priority from GitHub labels.
+// extractPriority extracts priority from GitHub labels and normalizes to valid values.
+// Valid priorities are: high, medium, low
+// Any other priority value is mapped to "high" to avoid accidental deprioritization.
 func extractPriority(labels []*github.Label) *string {
 	for _, label := range labels {
 		name := strings.ToLower(label.GetName())
 		if strings.HasPrefix(name, "priority:") {
 			priority := strings.TrimPrefix(name, "priority:")
-			return &priority
+
+			// Normalize to valid priority values
+			switch priority {
+			case "high", "medium", "low":
+				return &priority
+			default:
+				// Map any invalid priority to "high" to avoid deprioritization
+				// This includes values like: urgent, critical, p0, p1, etc.
+				high := "high"
+				return &high
+			}
 		}
 	}
 	return nil
@@ -203,20 +219,14 @@ func taskCreateToIssueRequest(task *types.TaskCreate) *github.IssueRequest {
 	if task.Priority != nil {
 		labels = append(labels, fmt.Sprintf("priority:%s", *task.Priority))
 	}
-	for _, label := range task.Labels {
-		labels = append(labels, label.Name)
-	}
+	labels = append(labels, task.Labels...)
 	if len(labels) > 0 {
 		req.Labels = &labels
 	}
 
 	// Set assignees
 	if len(task.Assignees) > 0 {
-		assignees := make([]string, len(task.Assignees))
-		for i, assignee := range task.Assignees {
-			assignees[i] = assignee.Name
-		}
-		req.Assignees = &assignees
+		req.Assignees = &task.Assignees
 	}
 
 	return req
@@ -249,19 +259,13 @@ func taskUpdateToIssueRequest(task *types.TaskUpdate) *github.IssueRequest {
 		if task.Priority != nil {
 			labels = append(labels, fmt.Sprintf("priority:%s", *task.Priority))
 		}
-		for _, label := range task.Labels {
-			labels = append(labels, label.Name)
-		}
+		labels = append(labels, task.Labels...)
 		req.Labels = &labels
 	}
 
 	// Set assignees
 	if len(task.Assignees) > 0 {
-		assignees := make([]string, len(task.Assignees))
-		for i, assignee := range task.Assignees {
-			assignees[i] = assignee.Name
-		}
-		req.Assignees = &assignees
+		req.Assignees = &task.Assignees
 	}
 
 	return req

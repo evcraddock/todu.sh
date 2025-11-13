@@ -29,8 +29,8 @@ type TaskCreate struct {
 	Status      string     `json:"status"`
 	Priority    *string    `json:"priority,omitempty"`
 	DueDate     *time.Time `json:"due_date,omitempty"`
-	Labels      []Label    `json:"labels,omitempty"`
-	Assignees   []Assignee `json:"assignees,omitempty"`
+	Labels      []string   `json:"labels,omitempty"`
+	Assignees   []string   `json:"assignees,omitempty"`
 }
 
 // TaskUpdate represents data for updating an existing task
@@ -42,6 +42,6 @@ type TaskUpdate struct {
 	Status      *string    `json:"status,omitempty"`
 	Priority    *string    `json:"priority,omitempty"`
 	DueDate     *time.Time `json:"due_date,omitempty"`
-	Labels      []Label    `json:"labels,omitempty"`
-	Assignees   []Assignee `json:"assignees,omitempty"`
+	Labels      []string   `json:"labels,omitempty"`
+	Assignees   []string   `json:"assignees,omitempty"`
 }

@@ -113,6 +113,19 @@ func handleMockAPI(t *testing.T, w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+
+		// Convert string labels to Label structs
+		labels := make([]types.Label, len(taskCreate.Labels))
+		for i, name := range taskCreate.Labels {
+			labels[i] = types.Label{Name: name}
+		}
+
+		// Convert string assignees to Assignee structs
+		assignees := make([]types.Assignee, len(taskCreate.Assignees))
+		for i, name := range taskCreate.Assignees {
+			assignees[i] = types.Assignee{Name: name}
+		}
+
 		task := &types.Task{
 			ID:          1,
 			ExternalID:  taskCreate.ExternalID,
@@ -125,8 +138,8 @@ func handleMockAPI(t *testing.T, w http.ResponseWriter, r *http.Request) {
 			DueDate:     taskCreate.DueDate,
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
-			Labels:      taskCreate.Labels,
-			Assignees:   taskCreate.Assignees,
+			Labels:      labels,
+			Assignees:   assignees,
 		}
 		json.NewEncoder(w).Encode(task)
 
@@ -137,6 +150,19 @@ func handleMockAPI(t *testing.T, w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+
+		// Convert string labels to Label structs
+		labels := make([]types.Label, len(taskUpdate.Labels))
+		for i, name := range taskUpdate.Labels {
+			labels[i] = types.Label{Name: name}
+		}
+
+		// Convert string assignees to Assignee structs
+		assignees := make([]types.Assignee, len(taskUpdate.Assignees))
+		for i, name := range taskUpdate.Assignees {
+			assignees[i] = types.Assignee{Name: name}
+		}
+
 		task := &types.Task{
 			ID:          1,
 			ExternalID:  "task-1",
@@ -148,8 +174,8 @@ func handleMockAPI(t *testing.T, w http.ResponseWriter, r *http.Request) {
 			DueDate:     taskUpdate.DueDate,
 			CreatedAt:   time.Now().Add(-1 * time.Hour),
 			UpdatedAt:   time.Now(),
-			Labels:      taskUpdate.Labels,
-			Assignees:   taskUpdate.Assignees,
+			Labels:      labels,
+			Assignees:   assignees,
 		}
 		json.NewEncoder(w).Encode(task)
 

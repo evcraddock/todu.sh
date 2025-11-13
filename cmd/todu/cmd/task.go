@@ -523,20 +523,12 @@ func runTaskCreate(cmd *cobra.Command, args []string) error {
 
 	// Add labels
 	if len(taskCreateLabels) > 0 {
-		labels := make([]types.Label, len(taskCreateLabels))
-		for i, name := range taskCreateLabels {
-			labels[i] = types.Label{Name: name}
-		}
-		taskCreate.Labels = labels
+		taskCreate.Labels = taskCreateLabels
 	}
 
 	// Add assignees
 	if len(taskCreateAssignees) > 0 {
-		assignees := make([]types.Assignee, len(taskCreateAssignees))
-		for i, name := range taskCreateAssignees {
-			assignees[i] = types.Assignee{Name: name}
-		}
-		taskCreate.Assignees = assignees
+		taskCreate.Assignees = taskCreateAssignees
 	}
 
 	task, err := apiClient.CreateTask(ctx, taskCreate)
@@ -602,67 +594,75 @@ func runTaskUpdate(cmd *cobra.Command, args []string) error {
 
 	// Handle labels
 	if len(taskUpdateAddLabels) > 0 || len(taskUpdateRemoveLabels) > 0 {
-		labels := currentTask.Labels
+		// Convert existing labels to strings
+		labelNames := make([]string, len(currentTask.Labels))
+		for i, label := range currentTask.Labels {
+			labelNames[i] = label.Name
+		}
 
 		// Add new labels
 		for _, name := range taskUpdateAddLabels {
 			// Check if already exists
 			exists := false
-			for _, label := range labels {
-				if label.Name == name {
+			for _, labelName := range labelNames {
+				if labelName == name {
 					exists = true
 					break
 				}
 			}
 			if !exists {
-				labels = append(labels, types.Label{Name: name})
+				labelNames = append(labelNames, name)
 			}
 		}
 
 		// Remove labels
 		for _, name := range taskUpdateRemoveLabels {
-			var newLabels []types.Label
-			for _, label := range labels {
-				if label.Name != name {
-					newLabels = append(newLabels, label)
+			var newLabels []string
+			for _, labelName := range labelNames {
+				if labelName != name {
+					newLabels = append(newLabels, labelName)
 				}
 			}
-			labels = newLabels
+			labelNames = newLabels
 		}
 
-		taskUpdate.Labels = labels
+		taskUpdate.Labels = labelNames
 	}
 
 	// Handle assignees
 	if len(taskUpdateAddAssignees) > 0 || len(taskUpdateRemoveAssignees) > 0 {
-		assignees := currentTask.Assignees
+		// Convert existing assignees to strings
+		assigneeNames := make([]string, len(currentTask.Assignees))
+		for i, assignee := range currentTask.Assignees {
+			assigneeNames[i] = assignee.Name
+		}
 
 		// Add new assignees
 		for _, name := range taskUpdateAddAssignees {
 			exists := false
-			for _, assignee := range assignees {
-				if assignee.Name == name {
+			for _, assigneeName := range assigneeNames {
+				if assigneeName == name {
 					exists = true
 					break
 				}
 			}
 			if !exists {
-				assignees = append(assignees, types.Assignee{Name: name})
+				assigneeNames = append(assigneeNames, name)
 			}
 		}
 
 		// Remove assignees
 		for _, name := range taskUpdateRemoveAssignees {
-			var newAssignees []types.Assignee
-			for _, assignee := range assignees {
-				if assignee.Name != name {
-					newAssignees = append(newAssignees, assignee)
+			var newAssignees []string
+			for _, assigneeName := range assigneeNames {
+				if assigneeName != name {
+					newAssignees = append(newAssignees, assigneeName)
 				}
 			}
-			assignees = newAssignees
+			assigneeNames = newAssignees
 		}
 
-		taskUpdate.Assignees = assignees
+		taskUpdate.Assignees = assigneeNames
 	}
 
 	task, err := apiClient.UpdateTask(ctx, taskID, taskUpdate)

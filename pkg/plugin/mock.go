@@ -196,6 +196,18 @@ func (m *MockPlugin) CreateTask(ctx context.Context, projectExternalID *string, 
 	now := time.Now()
 	externalID := fmt.Sprintf("task-%d", len(m.tasks)+1)
 
+	// Convert label strings to Label structs
+	labels := make([]types.Label, len(task.Labels))
+	for i, name := range task.Labels {
+		labels[i] = types.Label{Name: name}
+	}
+
+	// Convert assignee strings to Assignee structs
+	assignees := make([]types.Assignee, len(task.Assignees))
+	for i, name := range task.Assignees {
+		assignees[i] = types.Assignee{Name: name}
+	}
+
 	created := &types.Task{
 		ID:          len(m.tasks) + 1,
 		ExternalID:  externalID,
@@ -208,8 +220,8 @@ func (m *MockPlugin) CreateTask(ctx context.Context, projectExternalID *string, 
 		DueDate:     task.DueDate,
 		CreatedAt:   now,
 		UpdatedAt:   now,
-		Labels:      task.Labels,
-		Assignees:   task.Assignees,
+		Labels:      labels,
+		Assignees:   assignees,
 	}
 
 	m.tasks[externalID] = created
@@ -247,10 +259,18 @@ func (m *MockPlugin) UpdateTask(ctx context.Context, projectExternalID *string, 
 		existing.DueDate = task.DueDate
 	}
 	if task.Labels != nil {
-		existing.Labels = task.Labels
+		labels := make([]types.Label, len(task.Labels))
+		for i, name := range task.Labels {
+			labels[i] = types.Label{Name: name}
+		}
+		existing.Labels = labels
 	}
 	if task.Assignees != nil {
-		existing.Assignees = task.Assignees
+		assignees := make([]types.Assignee, len(task.Assignees))
+		for i, name := range task.Assignees {
+			assignees[i] = types.Assignee{Name: name}
+		}
+		existing.Assignees = assignees
 	}
 
 	existing.UpdatedAt = time.Now()
