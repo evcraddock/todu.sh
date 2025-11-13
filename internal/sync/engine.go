@@ -239,10 +239,44 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 		return
 	}
 
-	// Only push tasks that have an external_id (were previously synced)
+	// Process all tasks: create new ones and update existing ones
 	for _, toduTask := range toduTasks {
 		if toduTask.ExternalID == "" {
-			// Skip tasks without external_id (not synced from external system)
+			// Task doesn't have external_id, create it in external system
+			if !dryRun {
+				taskCreate := &types.TaskCreate{
+					Title:       toduTask.Title,
+					Description: toduTask.Description,
+					Status:      toduTask.Status,
+					Priority:    toduTask.Priority,
+					DueDate:     toduTask.DueDate,
+					Labels:      toduTask.Labels,
+					Assignees:   toduTask.Assignees,
+				}
+				createdTask, err := p.CreateTask(ctx, &project.ExternalID, taskCreate)
+				if err != nil {
+					if err == plugin.ErrNotSupported {
+						pr.Skipped++
+						continue
+					}
+					pr.Errors = append(pr.Errors, fmt.Errorf("failed to create external task %q: %w", toduTask.Title, err))
+					continue
+				}
+				// Update Todu task with external_id and source_url
+				taskUpdate := &types.TaskUpdate{
+					ExternalID: &createdTask.ExternalID,
+					SourceURL:  createdTask.SourceURL,
+				}
+				_, err = e.apiClient.UpdateTask(ctx, toduTask.ID, taskUpdate)
+				if err != nil {
+					pr.Errors = append(pr.Errors, fmt.Errorf("failed to update task with external_id: %w", err))
+					continue
+				}
+				log.Printf("  → Created external task: %s (external_id: %s)", toduTask.Title, createdTask.ExternalID)
+			} else {
+				log.Printf("  → Would create external task: %s", toduTask.Title)
+			}
+			pr.Created++
 			continue
 		}
 

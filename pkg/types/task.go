@@ -35,6 +35,8 @@ type TaskCreate struct {
 
 // TaskUpdate represents data for updating an existing task
 type TaskUpdate struct {
+	ExternalID  *string    `json:"external_id,omitempty"`
+	SourceURL   *string    `json:"source_url,omitempty"`
 	Title       *string    `json:"title,omitempty"`
 	Description *string    `json:"description,omitempty"`
 	Status      *string    `json:"status,omitempty"`
