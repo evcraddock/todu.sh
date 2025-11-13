@@ -102,7 +102,7 @@ var (
 
 	// Create flags
 	taskCreateTitle       string
-	taskCreateProject     int
+	taskCreateProject     string
 	taskCreateDescription string
 	taskCreateStatus      string
 	taskCreatePriority    string
@@ -154,7 +154,7 @@ func init() {
 
 	// Create flags
 	taskCreateCmd.Flags().StringVar(&taskCreateTitle, "title", "", "Task title (required)")
-	taskCreateCmd.Flags().IntVarP(&taskCreateProject, "project", "p", 0, "Project ID (required)")
+	taskCreateCmd.Flags().StringVarP(&taskCreateProject, "project", "p", "", "Project ID or name (required)")
 	taskCreateCmd.Flags().StringVar(&taskCreateDescription, "description", "", "Task description")
 	taskCreateCmd.Flags().StringVar(&taskCreateStatus, "status", "active", "Task status")
 	taskCreateCmd.Flags().StringVar(&taskCreatePriority, "priority", "", "Task priority")
@@ -462,17 +462,23 @@ func runTaskCreate(cmd *cobra.Command, args []string) error {
 	if taskCreateTitle == "" {
 		return fmt.Errorf("--title is required")
 	}
-	if taskCreateProject == 0 {
+	if taskCreateProject == "" {
 		return fmt.Errorf("--project is required")
 	}
 
 	apiClient := api.NewClient(cfg.APIURL)
 	ctx := context.Background()
 
+	// Resolve project ID from name or ID
+	projectID, err := resolveProjectID(ctx, apiClient, taskCreateProject)
+	if err != nil {
+		return fmt.Errorf("failed to resolve project: %w", err)
+	}
+
 	// Build task create request
 	taskCreate := &types.TaskCreate{
 		Title:     taskCreateTitle,
-		ProjectID: taskCreateProject,
+		ProjectID: projectID,
 		Status:    taskCreateStatus,
 	}
 
@@ -770,4 +776,34 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// resolveProjectID resolves a project identifier (name or ID) to a project ID.
+func resolveProjectID(ctx context.Context, apiClient *api.Client, identifier string) (int, error) {
+	// Try to parse as integer ID first
+	if id, err := strconv.Atoi(identifier); err == nil {
+		// It's an ID, verify it exists
+		_, err := apiClient.GetProject(ctx, id)
+		if err != nil {
+			return 0, fmt.Errorf("project ID %d not found", id)
+		}
+		return id, nil
+	}
+
+	// Not an ID, treat as project name - list all projects and find by name
+	projects, err := apiClient.ListProjects(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to list projects: %w", err)
+	}
+
+	// Look for exact match (case-insensitive)
+	lowerIdentifier := strings.ToLower(identifier)
+	for _, project := range projects {
+		if strings.ToLower(project.Name) == lowerIdentifier {
+			return project.ID, nil
+		}
+	}
+
+	// No match found
+	return 0, fmt.Errorf("project %q not found", identifier)
 }
