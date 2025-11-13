@@ -56,6 +56,7 @@ Each error must include helpful context about what's needed.
 ### 3. Documentation
 
 Add package documentation explaining:
+
 - Purpose of the plugin interface
 - How plugins should implement each method
 - What external_id represents for projects and tasks

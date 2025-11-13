@@ -2,7 +2,6 @@
 
 **Status**: ✅ COMPLETE
 
-
 **Goal**: Set up Cobra CLI framework with version command
 
 **Prerequisites**: Unit 0.2 complete

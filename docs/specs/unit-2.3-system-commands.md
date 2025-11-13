@@ -96,6 +96,7 @@ Implement `system remove <id>` subcommand that:
 ## Verification
 
 Commands to test:
+
 - `todu system --help`
 - `todu system list`
 - `todu system add --identifier test --name "Test System"`

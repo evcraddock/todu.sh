@@ -2,7 +2,6 @@
 
 **Status**: ✅ COMPLETE
 
-
 **Goal**: Add `todu config show` command
 
 **Prerequisites**: Unit 1.2 complete

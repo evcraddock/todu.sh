@@ -112,18 +112,21 @@ Implement `task delete <id>` subcommand that:
 ### 9. Output Formatting
 
 For text output:
+
 - Tables for lists
 - Clear field labels for details
 - Readable date formats
 - Color coding for status/priority (if output.color is true)
 
 For JSON output:
+
 - Pretty-printed JSON
 - Include all fields including nested objects
 
 ### 10. Interactive Create Mode
 
 When `task create` is run without flags:
+
 - Prompt for each field
 - Allow user to skip optional fields
 - Validate input
@@ -150,6 +153,7 @@ When `task create` is run without flags:
 ## Verification
 
 Commands to test:
+
 - `todu task --help`
 - `todu task list`
 - `todu task list --status open --project 1`

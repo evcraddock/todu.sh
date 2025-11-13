@@ -1,6 +1,6 @@
 # Unit 8.1: Polish and Documentation
 
-**Status**: 🔲 TODO
+**Status**: ✅ COMPLETE
 
 **Goal**: Finalize CLI polish and create comprehensive documentation
 
@@ -24,6 +24,7 @@ Review and improve all command help text:
 - Required vs optional flags are clear
 
 For each command group (config, system, project, task, sync, daemon):
+
 - Add usage examples
 - Show common patterns
 - Explain when to use each command
@@ -69,6 +70,7 @@ Add progress indicators for long operations:
 Create documentation files:
 
 **`README.md`:**
+
 - Project overview
 - Quick start guide
 - Installation instructions
@@ -76,12 +78,14 @@ Create documentation files:
 - Link to detailed docs
 
 **`docs/installation.md`:**
+
 - Installation from source
 - Installation from binary (future)
 - Requirements (Go version, etc.)
 - Platform-specific notes
 
 **`docs/configuration.md`:**
+
 - Configuration file format
 - Environment variables
 - Configuration precedence
@@ -89,6 +93,7 @@ Create documentation files:
 - Examples for each plugin
 
 **`docs/workflows.md`:**
+
 - Initial setup workflow
 - Linking external systems
 - Running first sync
@@ -97,6 +102,7 @@ Create documentation files:
 - Common troubleshooting
 
 **`docs/plugins.md`:**
+
 - Available plugins
 - Plugin configuration
 - Plugin-specific notes
@@ -104,6 +110,7 @@ Create documentation files:
 - Authentication setup
 
 **`docs/cli-reference.md`:**
+
 - Complete command reference
 - All flags documented
 - Examples for each command
@@ -126,6 +133,7 @@ Create `docs/plugin-development.md`:
 Document common workflows in `docs/workflows.md`:
 
 **Initial Setup:**
+
 ```bash
 # 1. Set API URL
 todu config show
@@ -144,6 +152,7 @@ todu project add --system 1 --external-id "owner/repo" --name "My Project"
 ```
 
 **Running Sync:**
+
 ```bash
 # Dry run to preview
 todu sync --dry-run
@@ -156,6 +165,7 @@ todu sync --all
 ```
 
 **Managing Tasks:**
+
 ```bash
 # List open tasks
 todu task list --status open
@@ -171,6 +181,7 @@ todu task comment 123 "This is fixed"
 ```
 
 **Setting up Daemon:**
+
 ```bash
 # Install daemon
 todu daemon install --interval 5m

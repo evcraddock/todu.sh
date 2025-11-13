@@ -28,6 +28,7 @@ plugins/github/
 ### 2. Go Module Initialization
 
 Initialize plugin module:
+
 - `cd plugins/github && go mod init github.com/evcraddock/todu.sh/plugins/github`
 - Add dependency on main module: `require github.com/evcraddock/todu.sh v0.1.0`
 - Add GitHub API client: `github.com/google/go-github/v56/github`
@@ -47,6 +48,7 @@ type Plugin struct {
 ### 4. Plugin Registration
 
 In `plugin.go` init() function:
+
 - Register with global registry
 - Use name "github"
 
@@ -61,16 +63,19 @@ func init() {
 ### 5. Metadata Methods
 
 Implement:
+
 - `Name() string` - Returns "github"
 - `Version() string` - Returns plugin version (e.g., "1.0.0")
 
 ### 6. Configuration
 
 Required configuration keys:
+
 - `token` - GitHub personal access token
-- `url` - GitHub API URL (optional, defaults to "https://api.github.com")
+- `url` - GitHub API URL (optional, defaults to "<https://api.github.com>")
 
 Implement:
+
 - `Configure(config map[string]string) error`
   - Store config
   - Validate required fields

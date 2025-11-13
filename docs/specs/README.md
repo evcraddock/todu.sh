@@ -49,12 +49,12 @@ This directory contains individual specification files for each unit of work. Ea
 
 ### Phase 7: Daemon Mode (85 min total)
 
-- 🔲 [Unit 7.1: Daemon Mode Implementation](./unit-7.1-daemon-mode.md) (45 min)
-- 🔲 [Unit 7.2: Daemon Commands and Service Management](./unit-7.2-daemon-commands.md) (40 min)
+- ✅ [Unit 7.1: Daemon Mode Implementation](./unit-7.1-daemon-mode.md) (45 min)
+- ✅ [Unit 7.2: Daemon Commands and Service Management](./unit-7.2-daemon-commands.md) (40 min)
 
 ### Phase 8: Polish and Documentation (60 min total)
 
-- 🔲 [Unit 8.1: Polish and Documentation](./unit-8.1-polish-and-documentation.md) (60 min)
+- ✅ [Unit 8.1: Polish and Documentation](./unit-8.1-polish-and-documentation.md) (60 min)
 
 ## Total Estimated Time
 

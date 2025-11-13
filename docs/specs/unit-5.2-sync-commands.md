@@ -46,12 +46,14 @@ Implement `sync status` subcommand that:
 ### 4. Progress Display
 
 During sync:
+
 - Show current project being synced
 - Show tasks processed
 - Use progress indicators
 - Show errors as they occur
 
 After sync:
+
 - Summary table with results per project
 - Total tasks created/updated/skipped
 - Total time taken
@@ -67,6 +69,7 @@ After sync:
 ### 6. Dry Run Output
 
 When `--dry-run` is used:
+
 - Show "DRY RUN" prominently
 - Display what would be created/updated
 - Show conflicts that would be resolved
@@ -90,6 +93,7 @@ When `--dry-run` is used:
 ## Verification
 
 Commands to test:
+
 - `todu sync --help`
 - `todu sync --dry-run`
 - `todu sync --project 1`

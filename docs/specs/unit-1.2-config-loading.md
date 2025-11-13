@@ -2,7 +2,6 @@
 
 **Status**: ✅ COMPLETE
 
-
 **Goal**: Load configuration from YAML file and environment variables
 
 **Prerequisites**: Unit 1.1 complete

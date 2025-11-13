@@ -55,6 +55,7 @@ In daemon main loop:
 ### 4. Signal Handling
 
 Implement graceful shutdown:
+
 - Catch SIGINT and SIGTERM
 - Call Stop() on daemon
 - Wait for current sync to finish
@@ -74,11 +75,13 @@ Implement logging in `internal/daemon/logger.go`:
 ### 6. Error Recovery
 
 Handle errors:
+
 - API connection failures
 - Plugin errors
 - Configuration errors
 
 On error:
+
 - Log error with details
 - Increment failure count
 - Use exponential backoff (up to max interval)
@@ -97,6 +100,7 @@ daemon:
 ### 8. Health Status
 
 Implement status tracking:
+
 - Last sync time
 - Last sync result
 - Current status (running/stopped)

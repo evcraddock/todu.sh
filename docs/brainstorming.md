@@ -994,6 +994,7 @@ Would you like to:
 **Options**:
 
 **A) Monorepo - All plugins in main repository**:
+
 ```
 todu/
 ├── plugins/
@@ -1003,6 +1004,7 @@ todu/
 └── pkg/
     └── plugin/     # Public plugin interface
 ```
+
 - All plugins compiled into single binary
 - Versioned together
 - Easier development and testing
@@ -1011,11 +1013,13 @@ todu/
 - Con: Main repo grows with every plugin
 
 **B) Separate repositories for each plugin**:
+
 ```
 github.com/yourorg/todu                    # Main CLI
 github.com/yourorg/todu-plugin-github      # Separate repo
 github.com/yourorg/todu-plugin-jira        # Separate repo
 ```
+
 - Each plugin is its own Go module
 - Main CLI imports as dependencies
 - Pro: Independent versioning, third-party plugins possible
@@ -1023,6 +1027,7 @@ github.com/yourorg/todu-plugin-jira        # Separate repo
 - Note: Go doesn't support runtime plugin loading well
 
 **C) Hybrid - Core plugins in main repo, extensible for external**:
+
 ```
 todu/
 ├── plugins/           # Built-in core plugins
@@ -1030,6 +1035,7 @@ todu/
 └── pkg/
     └── plugin/       # Public interface for external plugins
 ```
+
 - Core plugins (GitHub, Jira, etc.) built into binary
 - Plugin interface in `pkg/` is public API
 - External plugins could be added later (compile-time only)
@@ -1037,12 +1043,14 @@ todu/
 - Con: External plugins require recompilation
 
 **D) Plugin as separate binaries (exec model)**:
+
 - Plugins are separate executables
 - CLI calls plugin binaries via subprocess
 - Pro: True runtime plugin system, any language
 - Con: Much more complex, slower, deployment complexity
 
 **Considerations for this project**:
+
 - Starting with just GitHub plugin
 - LLM is primary user (needs simple deployment)
 - Single binary is easiest to distribute
@@ -1052,6 +1060,7 @@ todu/
 **Recommendation**: Start with **Option C (Hybrid)**
 
 **Rationale**:
+
 1. Keep plugins in main repo initially for faster development
 2. Put plugin interface in `pkg/plugin/` (public API)
 3. Single binary with all built-in plugins
@@ -1059,6 +1068,7 @@ todu/
 5. Similar to how kubectl, terraform, and other Go CLIs work
 
 **Implementation**:
+
 ```
 todu/
 ├── cmd/todu/              # Main entry point
@@ -1077,6 +1087,7 @@ todu/
 ```
 
 **Benefits**:
+
 - Simple development workflow (one repo, one binary)
 - Fast iteration on plugin interface
 - Easy testing
@@ -1084,6 +1095,7 @@ todu/
 - LLM gets single binary to install
 
 **Future extensibility** (if needed):
+
 - Third parties could create `todu-plugin-custom` packages
 - Users would fork todu, add import, recompile
 - Or: could add simple exec-based plugin system later
@@ -1095,6 +1107,7 @@ todu/
 **Clarification**: Plugins are separate Go modules (each with own `go.mod`) but in same repository (monorepo)
 
 **Structure**:
+
 ```
 todu/                              # Monorepo root
 ├── go.mod                         # Main module: github.com/yourorg/todu
@@ -1122,6 +1135,7 @@ todu/                              # Monorepo root
 ```
 
 **How it works**:
+
 ```go
 // Main module go.mod
 module github.com/yourorg/todu
@@ -1133,6 +1147,7 @@ require github.com/yourorg/todu v0.1.0  // Import main module for interface
 ```
 
 **Benefits**:
+
 - Each plugin has independent dependencies
 - Plugins can be versioned separately
 - Clear module boundaries
@@ -1140,6 +1155,7 @@ require github.com/yourorg/todu v0.1.0  // Import main module for interface
 - Still in one repo for easier development
 
 **Main CLI imports plugins**:
+
 ```go
 // cmd/todu/main.go
 import (
@@ -1155,6 +1171,7 @@ func init() {
 ```
 
 **This is better than single module because**:
+
 - Plugin dependencies don't pollute main CLI
 - Can test plugins independently
 - Can version plugins separately if needed
@@ -1163,6 +1180,7 @@ func init() {
 **Future Evolution to True Plugin System**:
 
 This structure supports evolution to a true plugin system post-MVP where:
+
 - Third parties can develop plugins independently
 - Plugins can be distributed separately
 - Plugins loaded at runtime (not compile-time)
@@ -1170,24 +1188,28 @@ This structure supports evolution to a true plugin system post-MVP where:
 **Possible approaches for true runtime plugins**:
 
 **Option 1: gRPC-based plugins (HashiCorp go-plugin pattern)**:
+
 - Plugins are separate binaries that communicate via gRPC
 - Core discovers plugins in `~/.todu/plugins/` directory
 - Most robust, language-agnostic, production-ready
 - Used by: Terraform, Vault, Packer
 
 **Option 2: Go plugin package**:
+
 - Plugins are `.so` files (shared objects)
 - Loaded at runtime via `plugin.Open()`
 - Limitations: same Go version, platform-specific, finicky
 - Not recommended for production
 
 **Option 3: WebAssembly (WASM)**:
+
 - Plugins compiled to WASM
 - Run in sandbox
 - Language-agnostic
 - Emerging technology, still maturing
 
 **Option 4: Compile-time third-party plugins**:
+
 - Third parties publish Go modules
 - Users fork todu, add import, compile
 - Simple but requires recompilation
@@ -1196,6 +1218,7 @@ This structure supports evolution to a true plugin system post-MVP where:
 **Recommendation for future**: gRPC-based (HashiCorp go-plugin)
 
 **Design considerations for MVP to support future evolution**:
+
 1. Keep plugin interface stable and well-documented
 2. Keep interface in `pkg/plugin/` (public API)
 3. Design interface with RPC in mind (serializable types, no channels/pointers to shared memory)
@@ -1204,6 +1227,7 @@ This structure supports evolution to a true plugin system post-MVP where:
 6. Keep plugins stateless where possible
 
 **Migration path**:
+
 - **MVP (Phase 1)**: Built-in plugins, separate Go modules, single binary
 - **Phase 2**: Plugin discovery system, still compile-time but easier to add
 - **Phase 3**: True runtime plugins via gRPC (breaking change acceptable at this point)
@@ -1213,6 +1237,7 @@ This structure supports evolution to a true plugin system post-MVP where:
 **Asked**: Should plugins use external CLIs (like `gh`, `jira`) or call APIs directly?
 
 **Option A: Direct API calls** (current plan):
+
 ```go
 // Plugin directly calls GitHub API
 func (p *GitHubPlugin) FetchTasks(projectID *string, since *time.Time) ([]*Task, error) {
@@ -1224,6 +1249,7 @@ func (p *GitHubPlugin) FetchTasks(projectID *string, since *time.Time) ([]*Task,
 ```
 
 **Pros**:
+
 - Full API access - all features available
 - Structured data (JSON) - no parsing needed
 - Programmatic error handling
@@ -1233,11 +1259,13 @@ func (p *GitHubPlugin) FetchTasks(projectID *string, since *time.Time) ([]*Task,
 - Consistent across all plugins
 
 **Cons**:
+
 - Need to write/maintain API client code for each system
 - Handle authentication ourselves
 - Need to keep up with API changes
 
 **Option B: Shell out to external CLIs**:
+
 ```go
 // Plugin calls gh CLI
 func (p *GitHubPlugin) FetchTasks(projectID *string, since *time.Time) ([]*Task, error) {
@@ -1251,6 +1279,7 @@ func (p *GitHubPlugin) FetchTasks(projectID *string, since *time.Time) ([]*Task,
 ```
 
 **Pros**:
+
 - Leverage existing, well-maintained tools
 - Authentication already handled by CLI (users already logged in)
 - Don't write API clients
@@ -1259,6 +1288,7 @@ func (p *GitHubPlugin) FetchTasks(projectID *string, since *time.Time) ([]*Task,
 - CLIs often have nice features (caching, rate limiting)
 
 **Cons**:
+
 - **Dependency**: Requires external binaries installed (gh, jira, etc.)
 - **Fragile**: Parsing CLI output even with JSON (output format changes)
 - **Limited**: CLI might not expose all API features we need
@@ -1291,7 +1321,8 @@ func (p *GitHubPlugin) FetchTasks(projectID *string, since *time.Time) ([]*Task,
 
 **User experience considerations**:
 
-*With Direct API*:
+_With Direct API_:
+
 ```bash
 # User setup
 export TODU_GITHUB_TOKEN=ghp_xxx
@@ -1299,7 +1330,8 @@ todu project add --system github --external-id "owner/repo"
 todu sync --project "owner/repo"  # Just works
 ```
 
-*With External CLI*:
+_With External CLI_:
+
 ```bash
 # User setup - must install gh first
 brew install gh
@@ -1311,12 +1343,14 @@ todu sync --project "owner/repo"  # Calls: gh issue list ...
 ```
 
 **Hybrid option?**:
+
 - Try CLI first (if available), fallback to direct API
 - But adds complexity, not recommended
 
 **Recommendation**: **Option A - Direct API calls**
 
 **Rationale**:
+
 1. More reliable and predictable
 2. Full API access
 3. Easier to test and maintain
@@ -1326,6 +1360,7 @@ todu sync --project "owner/repo"  # Calls: gh issue list ...
 7. Go has excellent HTTP/API client libraries
 
 **Trade-offs accepted**:
+
 - We write/maintain API client code (but Go libraries help)
 - We handle authentication (but env vars are simple)
 - We track API changes (but APIs are stable, documented)
@@ -1355,6 +1390,7 @@ todu sync --project "owner/repo"  # Calls: gh issue list ...
 13. ✅ **Configuration**: Environment variables for secrets + YAML config file for settings
 
 ### Project Structure
+
 ```
 todu/                      # Monorepo root
 ├── go.mod                 # Main module

@@ -33,12 +33,14 @@ Create `plugins/github/client.go`:
 Create `plugins/github/mapper.go`:
 
 **Repository → Project:**
+
 - external_id = "owner/repo" (e.g., "octocat/hello-world")
 - name = repository name
 - description = repository description
 - status = "active" (repositories don't have status)
 
 **Issue → Task:**
+
 - external_id = issue number as string (e.g., "123")
 - title = issue title
 - description = issue body
@@ -57,6 +59,7 @@ Create `plugins/github/mapper.go`:
 - due_date = milestone due date (if present)
 
 **Comment → Comment:**
+
 - content = comment body
 - author = comment author login
 - created_at/updated_at = comment timestamps

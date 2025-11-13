@@ -2,7 +2,6 @@
 
 **Status**: ✅ COMPLETE
 
-
 **Goal**: Create HTTP client wrapper for Todu API
 
 **Prerequisites**: Unit 1.3 complete
