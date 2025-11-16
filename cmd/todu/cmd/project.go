@@ -176,7 +176,7 @@ func runProjectList(cmd *cobra.Command, args []string) error {
 
 	// Table output
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tNAME\tSYSTEM\tEXTERNAL ID\tSTATUS\tSYNC STRATEGY")
+	fmt.Fprintln(w, "ID\tNAME\tSYSTEM\tEXTERNAL ID\tSTATUS\tSYNC STRATEGY\tLAST SYNCED")
 
 	for _, project := range projects {
 		systemName := systemNames[project.SystemID]
@@ -184,13 +184,19 @@ func runProjectList(cmd *cobra.Command, args []string) error {
 			systemName = fmt.Sprintf("(unknown:%d)", project.SystemID)
 		}
 
-		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%s\n",
+		lastSynced := "Never"
+		if project.LastSyncedAt != nil {
+			lastSynced = project.LastSyncedAt.Format("2006-01-02 15:04")
+		}
+
+		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			project.ID,
 			truncateString(project.Name, 30),
 			systemName,
 			truncateString(project.ExternalID, 30),
 			project.Status,
 			project.SyncStrategy,
+			lastSynced,
 		)
 	}
 

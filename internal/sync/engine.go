@@ -128,6 +128,17 @@ func (e *Engine) syncProject(ctx context.Context, project *types.Project, option
 
 	if len(pr.Errors) == 0 {
 		log.Printf("  ✓ Project synced: %d created, %d updated, %d skipped", pr.Created, pr.Updated, pr.Skipped)
+		// Update last_synced_at timestamp on successful sync
+		if !options.DryRun {
+			now := time.Now()
+			projectUpdate := &types.ProjectUpdate{
+				LastSyncedAt: &now,
+			}
+			_, err := e.apiClient.UpdateProject(ctx, project.ID, projectUpdate)
+			if err != nil {
+				log.Printf("  WARNING: failed to update last_synced_at: %v", err)
+			}
+		}
 	} else {
 		log.Printf("  ✗ Project sync completed with %d error(s)", len(pr.Errors))
 		for i, err := range pr.Errors {
@@ -151,8 +162,8 @@ func (e *Engine) determineStrategy(project *types.Project, options Options) Stra
 
 // syncPull pulls tasks from external system to Todu.
 func (e *Engine) syncPull(ctx context.Context, project *types.Project, p plugin.Plugin, dryRun bool, pr *ProjectResult) {
-	// Fetch tasks from external system
-	externalTasks, err := p.FetchTasks(ctx, &project.ExternalID, nil)
+	// Fetch tasks from external system (use LastSyncedAt for incremental sync)
+	externalTasks, err := p.FetchTasks(ctx, &project.ExternalID, project.LastSyncedAt)
 	if err != nil {
 		pr.Errors = append(pr.Errors, fmt.Errorf("failed to fetch external tasks: %w", err))
 		return
@@ -251,6 +262,12 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 
 	// Process all tasks: create new ones and update existing ones
 	for _, toduTask := range toduTasks {
+		// Skip tasks that haven't been modified since last sync (optimization)
+		if toduTask.ExternalID != "" && project.LastSyncedAt != nil && !toduTask.UpdatedAt.After(*project.LastSyncedAt) {
+			pr.Skipped++
+			continue
+		}
+
 		if toduTask.ExternalID == "" {
 			// Task doesn't have external_id, create it in external system
 			if !dryRun {
