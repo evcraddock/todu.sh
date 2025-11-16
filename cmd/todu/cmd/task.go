@@ -92,6 +92,7 @@ var (
 	taskListStatus     string
 	taskListPriority   string
 	taskListProject    string
+	taskListSystem     string
 	taskListAssignee   string
 	taskListLabels     []string
 	taskListSearch     string
@@ -144,6 +145,7 @@ func init() {
 	taskListCmd.Flags().StringVar(&taskListStatus, "status", "", "Filter by status")
 	taskListCmd.Flags().StringVar(&taskListPriority, "priority", "", "Filter by priority")
 	taskListCmd.Flags().StringVarP(&taskListProject, "project", "p", "", "Filter by project ID or name")
+	taskListCmd.Flags().StringVar(&taskListSystem, "system", "", "Filter by system ID or name")
 	taskListCmd.Flags().StringVar(&taskListAssignee, "assignee", "", "Filter by assignee")
 	taskListCmd.Flags().StringSliceVar(&taskListLabels, "label", []string{}, "Filter by label (repeatable)")
 	taskListCmd.Flags().StringVar(&taskListSearch, "search", "", "Full-text search")
@@ -195,6 +197,26 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 	apiClient := api.NewClient(cfg.APIURL)
 	ctx := context.Background()
 
+	// Resolve system ID if provided (for filtering)
+	var systemProjectIDs map[int]bool
+	if taskListSystem != "" {
+		systemID, err := resolveSystemID(apiClient, taskListSystem)
+		if err != nil {
+			return fmt.Errorf("failed to resolve system: %w", err)
+		}
+
+		// Get all projects for this system
+		projects, err := apiClient.ListProjects(ctx, &systemID)
+		if err != nil {
+			return fmt.Errorf("failed to list projects for system: %w", err)
+		}
+
+		systemProjectIDs = make(map[int]bool)
+		for _, p := range projects {
+			systemProjectIDs[p.ID] = true
+		}
+	}
+
 	// Resolve project ID from name or ID if provided
 	var projectIDPtr *int
 	if taskListProject != "" {
@@ -208,6 +230,17 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 	tasks, err := apiClient.ListTasks(ctx, projectIDPtr)
 	if err != nil {
 		return fmt.Errorf("failed to list tasks: %w", err)
+	}
+
+	// Filter by system if specified
+	if systemProjectIDs != nil {
+		var filteredTasks []*types.Task
+		for _, task := range tasks {
+			if systemProjectIDs[task.ProjectID] {
+				filteredTasks = append(filteredTasks, task)
+			}
+		}
+		tasks = filteredTasks
 	}
 
 	// Apply filters

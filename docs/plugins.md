@@ -29,13 +29,13 @@ Sync tasks with GitHub Issues.
 export TODU_GITHUB_TOKEN="ghp_your_token_here"
 ```
 
-3. **Register system**:
+1. **Register system**:
 
 ```bash
 todu system add github
 ```
 
-4. **Link repository**:
+1. **Link repository**:
 
 ```bash
 todu project add --system github --external-id "owner/repo" --name "My Repo"
@@ -111,13 +111,13 @@ export TODU_FORGEJO_TOKEN="your_token_here"
 export TODU_FORGEJO_URL="https://git.example.com"
 ```
 
-3. **Register system**:
+1. **Register system**:
 
 ```bash
 todu system add forgejo
 ```
 
-4. **Link repository**:
+1. **Link repository**:
 
 ```bash
 todu project add --system forgejo --external-id "owner/repo" --name "My Repo"
@@ -141,6 +141,93 @@ Same as GitHub plugin (Forgejo/Gitea use GitHub-compatible API).
 - **Compatible**: Works with both Forgejo and Gitea
 - **Self-Hosted**: Requires `TODU_FORGEJO_URL` to point to your instance
 - **API Compatibility**: Uses Gitea-compatible API
+
+### Todoist Plugin
+
+Sync tasks with Todoist personal task management.
+
+#### Configuration
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `TODU_PLUGIN_TODOIST_TOKEN` | API Token | Yes | - |
+
+#### Setup
+
+1. **Create API Token**:
+   - Go to Todoist Settings → Integrations → Developer
+   - Or visit <https://todoist.com/app/settings/integrations/developer>
+   - Generate a new token
+   - Copy the token
+
+2. **Configure token**:
+
+```bash
+export TODU_PLUGIN_TODOIST_TOKEN="your_token_here"
+```
+
+1. **Register system**:
+
+```bash
+todu system add todoist
+```
+
+1. **Link project**:
+
+```bash
+todu project add --system todoist --external-id "project-id" --name "My Project"
+```
+
+#### Type Mappings
+
+**Todoist Project → Todu Project:**
+
+- `external_id`: Todoist project ID (UUID)
+- `name`: Project name
+- `description`: None (Todoist projects don't have descriptions)
+- `status`: "active"
+
+**Todoist Task → Todu Task:**
+
+- `external_id`: Task ID (UUID)
+- `title`: Task content
+- `description`: Task description
+- `status`: "done" (if completed) or "active" (if not completed)
+- `priority`:
+  - Todoist 4 (urgent) → "high"
+  - Todoist 3 (high) → "medium"
+  - Todoist 2 (medium) → "low"
+  - Todoist 1 (normal) → no priority
+- `labels`: Task labels
+- `assignees`: Empty (personal task manager)
+- `source_url`: Task URL
+- `due_date`: Task due date
+
+**Todoist Comment → Todu Comment:**
+
+- `content`: Comment text
+- `author`: Empty (REST API doesn't provide author)
+- `created_at`/`updated_at`: Posted timestamp
+
+#### Supported Operations
+
+- ✅ Fetch projects
+- ✅ Fetch tasks (with optional project filter)
+- ✅ Create tasks
+- ✅ Update tasks (title, description, priority, labels, status)
+- ✅ Fetch comments
+- ✅ Create comments
+- ❌ Assignees (personal task manager, not supported)
+- ❌ Delete tasks (not implemented)
+
+#### Notes
+
+- **Personal Task Manager**: Todoist is designed for personal use, so no assignees are supported
+- **Priority Inversion**: Todoist uses 4=highest priority (opposite of typical systems)
+- **REST API v2**: Uses Todoist REST API v2
+- **No Updated Timestamp**: REST API doesn't provide task updated_at, so incremental sync is limited
+- **Rate Limiting**: Be mindful of Todoist API rate limits
+- **Completion**: Closing/reopening tasks uses separate API endpoints
 
 ## Plugin System Architecture
 
@@ -200,21 +287,6 @@ Sync tasks with Atlassian Jira.
 - Project → Jira Project
 - Task → Jira Issue
 - Custom fields supported
-
-### Todoist Plugin (Planned)
-
-Sync tasks with Todoist.
-
-**Configuration**:
-
-- `TODU_TODOIST_TOKEN` - API token
-
-**Mappings**:
-
-- Project → Todoist Project
-- Task → Todoist Task
-- Priority levels mapped
-- Labels and due dates supported
 
 ### Linear Plugin (Planned)
 

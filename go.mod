@@ -5,6 +5,7 @@ go 1.24.5
 require (
 	github.com/evcraddock/todu.sh/plugins/forgejo v0.0.0-00010101000000-000000000000
 	github.com/evcraddock/todu.sh/plugins/github v0.0.0-00010101000000-000000000000
+	github.com/evcraddock/todu.sh/plugins/todoist v0.0.0-00010101000000-000000000000
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.21.0
 )
@@ -31,3 +32,5 @@ require (
 replace github.com/evcraddock/todu.sh/plugins/forgejo => ./plugins/forgejo
 
 replace github.com/evcraddock/todu.sh/plugins/github => ./plugins/github
+
+replace github.com/evcraddock/todu.sh/plugins/todoist => ./plugins/todoist
