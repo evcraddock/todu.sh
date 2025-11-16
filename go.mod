@@ -3,6 +3,7 @@ module github.com/evcraddock/todu.sh
 go 1.24.5
 
 require (
+	github.com/evcraddock/todu.sh/plugins/forgejo v0.0.0-00010101000000-000000000000
 	github.com/evcraddock/todu.sh/plugins/github v0.0.0-00010101000000-000000000000
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.21.0
@@ -26,5 +27,7 @@ require (
 	golang.org/x/sys v0.29.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 )
+
+replace github.com/evcraddock/todu.sh/plugins/forgejo => ./plugins/forgejo
 
 replace github.com/evcraddock/todu.sh/plugins/github => ./plugins/github
