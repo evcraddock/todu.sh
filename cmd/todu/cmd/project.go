@@ -81,9 +81,9 @@ projects and shows which ones are already registered in todu.`,
 }
 
 var (
-	projectListSystem     int
+	projectListSystem     string
 	projectListFormat     string
-	projectAddSystem      int
+	projectAddSystem      string
 	projectAddExternalID  string
 	projectAddName        string
 	projectAddDescription string
@@ -95,7 +95,7 @@ var (
 	projectUpdateSyncStrategy string
 	projectRemoveForce       bool
 	projectRemoveCascade     bool
-	projectDiscoverSystem    int
+	projectDiscoverSystem    string
 	projectDiscoverAutoImport bool
 )
 
@@ -109,11 +109,11 @@ func init() {
 	projectCmd.AddCommand(projectDiscoverCmd)
 
 	// project list flags
-	projectListCmd.Flags().IntVar(&projectListSystem, "system", 0, "Filter by system ID")
+	projectListCmd.Flags().StringVar(&projectListSystem, "system", "", "Filter by system ID or name")
 	projectListCmd.Flags().StringVar(&projectListFormat, "format", "table", "Output format (table or json)")
 
 	// project add flags
-	projectAddCmd.Flags().IntVar(&projectAddSystem, "system", 0, "System ID (required)")
+	projectAddCmd.Flags().StringVar(&projectAddSystem, "system", "", "System ID or name (required)")
 	projectAddCmd.Flags().StringVar(&projectAddExternalID, "external-id", "", "External ID in the system (required)")
 	projectAddCmd.Flags().StringVar(&projectAddName, "name", "", "Project name (required)")
 	projectAddCmd.Flags().StringVar(&projectAddDescription, "description", "", "Project description")
@@ -134,7 +134,7 @@ func init() {
 	projectRemoveCmd.Flags().BoolVar(&projectRemoveCascade, "cascade", false, "Delete associated tasks as well")
 
 	// project discover flags
-	projectDiscoverCmd.Flags().IntVar(&projectDiscoverSystem, "system", 0, "System ID (required)")
+	projectDiscoverCmd.Flags().StringVar(&projectDiscoverSystem, "system", "", "System ID or name (required)")
 	projectDiscoverCmd.Flags().BoolVar(&projectDiscoverAutoImport, "auto-import", false, "Automatically import all discovered projects")
 	projectDiscoverCmd.MarkFlagRequired("system")
 }
@@ -148,8 +148,12 @@ func runProjectList(cmd *cobra.Command, args []string) error {
 	client := api.NewClient(cfg.APIURL)
 
 	var systemIDPtr *int
-	if projectListSystem != 0 {
-		systemIDPtr = &projectListSystem
+	if projectListSystem != "" {
+		systemID, err := resolveSystemID(client, projectListSystem)
+		if err != nil {
+			return err
+		}
+		systemIDPtr = &systemID
 	}
 
 	projects, err := client.ListProjects(context.Background(), systemIDPtr)
@@ -222,10 +226,16 @@ func runProjectAdd(cmd *cobra.Command, args []string) error {
 
 	client := api.NewClient(cfg.APIURL)
 
-	// Validate system exists
-	_, err = client.GetSystem(context.Background(), projectAddSystem)
+	// Resolve system ID
+	systemID, err := resolveSystemID(client, projectAddSystem)
 	if err != nil {
-		return fmt.Errorf("system %d not found: %w", projectAddSystem, err)
+		return err
+	}
+
+	// Validate system exists
+	_, err = client.GetSystem(context.Background(), systemID)
+	if err != nil {
+		return fmt.Errorf("system %q not found: %w", projectAddSystem, err)
 	}
 
 	var descPtr *string
@@ -236,7 +246,7 @@ func runProjectAdd(cmd *cobra.Command, args []string) error {
 	projectCreate := &types.ProjectCreate{
 		Name:         projectAddName,
 		Description:  descPtr,
-		SystemID:     projectAddSystem,
+		SystemID:     systemID,
 		ExternalID:   projectAddExternalID,
 		Status:       projectAddStatus,
 		SyncStrategy: projectAddSyncStrategy,
@@ -437,8 +447,14 @@ func runProjectDiscover(cmd *cobra.Command, args []string) error {
 
 	client := api.NewClient(cfg.APIURL)
 
+	// Resolve system ID
+	systemID, err := resolveSystemID(client, projectDiscoverSystem)
+	if err != nil {
+		return err
+	}
+
 	// Get system details
-	system, err := client.GetSystem(context.Background(), projectDiscoverSystem)
+	system, err := client.GetSystem(context.Background(), systemID)
 	if err != nil {
 		return fmt.Errorf("failed to get system: %w", err)
 	}
@@ -472,7 +488,7 @@ func runProjectDiscover(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get existing projects for this system
-	existingProjects, err := client.ListProjects(context.Background(), &projectDiscoverSystem)
+	existingProjects, err := client.ListProjects(context.Background(), &systemID)
 	if err != nil {
 		return fmt.Errorf("failed to list existing projects: %w", err)
 	}
@@ -518,7 +534,7 @@ func runProjectDiscover(cmd *cobra.Command, args []string) error {
 			projectCreate := &types.ProjectCreate{
 				Name:         project.Name,
 				Description:  project.Description,
-				SystemID:     projectDiscoverSystem,
+				SystemID:     systemID,
 				ExternalID:   project.ExternalID,
 				Status:       "active",
 				SyncStrategy: "bidirectional",
@@ -535,7 +551,7 @@ func runProjectDiscover(cmd *cobra.Command, args []string) error {
 	} else if len(newProjects) > 0 {
 		fmt.Printf("\nFound %d new projects. Use --auto-import to import them all.\n", len(newProjects))
 		fmt.Println("\nTo import individual projects:")
-		fmt.Printf("  todu project add --system %d --external-id <id> --name <name>\n", projectDiscoverSystem)
+		fmt.Printf("  todu project add --system %s --external-id <id> --name <name>\n", projectDiscoverSystem)
 	}
 
 	return nil

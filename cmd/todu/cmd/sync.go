@@ -37,11 +37,11 @@ projects that need attention.`,
 
 var (
 	syncProject      string
-	syncSystem       int
+	syncSystem       string
 	syncAll          bool
 	syncStrategy     string
 	syncDryRun       bool
-	syncStatusSystem int
+	syncStatusSystem string
 )
 
 func init() {
@@ -50,13 +50,13 @@ func init() {
 
 	// Sync flags
 	syncCmd.Flags().StringVarP(&syncProject, "project", "p", "", "Sync specific project by ID or name")
-	syncCmd.Flags().IntVarP(&syncSystem, "system", "s", 0, "Sync all projects for a system")
+	syncCmd.Flags().StringVarP(&syncSystem, "system", "s", "", "Sync all projects for a system (ID or name)")
 	syncCmd.Flags().BoolVarP(&syncAll, "all", "a", false, "Sync all projects (default if no filters)")
 	syncCmd.Flags().StringVar(&syncStrategy, "strategy", "", "Override sync strategy (pull/push/bidirectional)")
 	syncCmd.Flags().BoolVar(&syncDryRun, "dry-run", false, "Preview changes without making them")
 
 	// Sync status flags
-	syncStatusCmd.Flags().IntVarP(&syncStatusSystem, "system", "s", 0, "Filter by system ID")
+	syncStatusCmd.Flags().StringVarP(&syncStatusSystem, "system", "s", "", "Filter by system ID or name")
 }
 
 func runSync(cmd *cobra.Command, args []string) error {
@@ -98,8 +98,12 @@ func runSync(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to resolve project: %w", err)
 		}
 		options.ProjectIDs = []int{projectID}
-	} else if syncSystem > 0 {
-		options.SystemID = &syncSystem
+	} else if syncSystem != "" {
+		systemID, err := resolveSystemID(apiClient, syncSystem)
+		if err != nil {
+			return err
+		}
+		options.SystemID = &systemID
 	}
 	// If neither project nor system is specified, sync all (default behavior)
 
@@ -144,8 +148,12 @@ func runSyncStatus(cmd *cobra.Command, args []string) error {
 	// Get projects
 	ctx := context.Background()
 	var systemIDPtr *int
-	if syncStatusSystem > 0 {
-		systemIDPtr = &syncStatusSystem
+	if syncStatusSystem != "" {
+		systemID, err := resolveSystemID(apiClient, syncStatusSystem)
+		if err != nil {
+			return err
+		}
+		systemIDPtr = &systemID
 	}
 
 	projects, err := apiClient.ListProjects(ctx, systemIDPtr)
