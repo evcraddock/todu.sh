@@ -7,11 +7,16 @@ BINARY_PATH=$(BUILD_DIR)/$(BINARY_NAME)
 MAIN_PATH=./cmd/todu
 GO=go
 GOFLAGS=
-LDFLAGS=
 
 # Build information
 VERSION?=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_TIME=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
+COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
+
+# Linker flags for version injection
+LDFLAGS=-X 'github.com/evcraddock/todu.sh/cmd/todu/cmd.Version=$(VERSION)' \
+        -X 'github.com/evcraddock/todu.sh/cmd/todu/cmd.Commit=$(COMMIT)' \
+        -X 'github.com/evcraddock/todu.sh/cmd/todu/cmd.BuildDate=$(BUILD_TIME)'
 
 .PHONY: help
 help: ## Show this help message
