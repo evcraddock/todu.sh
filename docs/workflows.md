@@ -30,7 +30,7 @@ output:
 EOF
 ```
 
-2. **Verify configuration**:
+1. **Verify configuration**:
 
 ```bash
 todu config show
@@ -53,13 +53,13 @@ export TODU_GITHUB_TOKEN="ghp_your_token_here"
 export TODU_GITHUB_TOKEN="ghp_your_token_here"
 ```
 
-3. **Register GitHub system**:
+1. **Register GitHub system**:
 
 ```bash
 todu system add github
 ```
 
-4. **Verify system is registered**:
+1. **Verify system is registered**:
 
 ```bash
 todu system list
@@ -73,7 +73,7 @@ todu system list
 todu project discover --system github
 ```
 
-2. **Link a specific repository**:
+1. **Link a specific repository**:
 
 ```bash
 todu project add \
@@ -82,7 +82,7 @@ todu project add \
   --name "Hello World"
 ```
 
-3. **Verify project is linked**:
+1. **Verify project is linked**:
 
 ```bash
 todu project list
@@ -96,13 +96,13 @@ todu project list
 todu sync --all --dry-run
 ```
 
-2. **Perform the actual sync**:
+1. **Perform the actual sync**:
 
 ```bash
 todu sync --all
 ```
 
-3. **View synced tasks**:
+1. **View synced tasks**:
 
 ```bash
 todu task list

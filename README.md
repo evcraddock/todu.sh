@@ -5,6 +5,7 @@ A command-line tool for synchronizing tasks across multiple systems (GitHub Issu
 ## Features
 
 - **Multi-System Sync**: Sync tasks between GitHub, Forgejo, Todoist, and more
+- **Local-Only Projects**: Create projects that exist only in Todu without external sync
 - **Bidirectional Sync**: Push and pull changes between systems
 - **Plugin Architecture**: Easy to add new task management systems
 - **Background Daemon**: Automatic sync with configurable intervals
@@ -41,7 +42,7 @@ api_url: "http://localhost:8000"
 EOF
 ```
 
-2. **Register a System** (e.g., GitHub):
+1. **Register a System** (e.g., GitHub):
 
 ```bash
 # Add GitHub as a system
@@ -51,14 +52,14 @@ todu system add github
 export TODU_GITHUB_TOKEN="ghp_your_token_here"
 ```
 
-3. **Link a Project**:
+1. **Link a Project**:
 
 ```bash
 # Link a GitHub repository
 todu project add --system github --external-id "owner/repo" --name "My Project"
 ```
 
-4. **Run Your First Sync**:
+1. **Run Your First Sync**:
 
 ```bash
 # Preview what would sync
@@ -68,7 +69,7 @@ todu sync --all --dry-run
 todu sync --all
 ```
 
-5. **Set Up Background Sync** (Optional):
+1. **Set Up Background Sync** (Optional):
 
 ```bash
 # Install daemon to sync automatically every 5 minutes
@@ -99,10 +100,16 @@ todu system remove github
 # List all projects
 todu project list
 
+# Create a local-only project (no external sync)
+todu project add --name "My Local Tasks"
+
+# Create a local project with explicit system
+todu project add --system local --name "Personal Project"
+
 # Discover available repositories from GitHub
 todu project discover --system github
 
-# Add a specific project
+# Add a specific project from external system
 todu project add --system github --external-id "octocat/Hello-World" --name "Hello World"
 
 # Show project details
@@ -237,13 +244,13 @@ export TODU_GITHUB_URL="https://api.github.com"  # Optional, defaults to GitHub.
 │  - Comment synchronization                              │
 ├─────────────────────────────────────────────────────────┤
 │                   Plugin System                         │
-├──────────────┬──────────────┬──────────────────────────┤
-│    GitHub    │   Forgejo    │   Future Plugins...      │
-│    Plugin    │   Plugin     │   (Jira, Todoist, etc.)  │
-└──────────────┴──────────────┴──────────────────────────┘
-        │              │                   │
-        ▼              ▼                   ▼
-   GitHub API     Forgejo API        Other APIs
+├──────────┬───────────┬───────────┬─────────────────────┤
+│  Local   │  GitHub   │  Forgejo  │  Future Plugins...  │
+│  Plugin  │  Plugin   │  Plugin   │  (Jira, Todoist)    │
+└──────────┴───────────┴───────────┴─────────────────────┘
+     │           │            │               │
+     ▼           ▼            ▼               ▼
+  (no-op)   GitHub API   Forgejo API     Other APIs
 ```
 
 ## Plugin System
@@ -252,6 +259,7 @@ Todu uses a plugin architecture to support multiple task management systems. Eac
 
 **Currently Available Plugins:**
 
+- **Local**: Local-only projects with no external sync (auto-registered on first use)
 - **GitHub**: Sync with GitHub Issues
 - **Forgejo**: Sync with Forgejo/Gitea Issues
 

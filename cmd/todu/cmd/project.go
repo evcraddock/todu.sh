@@ -12,6 +12,7 @@ import (
 	"github.com/evcraddock/todu.sh/internal/config"
 	"github.com/evcraddock/todu.sh/internal/registry"
 	"github.com/evcraddock/todu.sh/pkg/types"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )
 
@@ -40,7 +41,12 @@ var projectAddCmd = &cobra.Command{
 	Long: `Add a new project linked to an external system.
 
 The project will be registered in todu and can then be synchronized
-with the external system.`,
+with the external system.
+
+For local-only projects (no external sync), you can simply use:
+  todu project add --name "My Project"
+
+This will auto-register the local system and generate an external ID.`,
 	RunE: runProjectAdd,
 }
 
@@ -113,14 +119,12 @@ func init() {
 	projectListCmd.Flags().StringVar(&projectListFormat, "format", "table", "Output format (table or json)")
 
 	// project add flags
-	projectAddCmd.Flags().StringVar(&projectAddSystem, "system", "", "System ID or name (required)")
-	projectAddCmd.Flags().StringVar(&projectAddExternalID, "external-id", "", "External ID in the system (required)")
+	projectAddCmd.Flags().StringVar(&projectAddSystem, "system", "local", "System ID or name (default: local)")
+	projectAddCmd.Flags().StringVar(&projectAddExternalID, "external-id", "", "External ID in the system (auto-generated for local)")
 	projectAddCmd.Flags().StringVar(&projectAddName, "name", "", "Project name (required)")
 	projectAddCmd.Flags().StringVar(&projectAddDescription, "description", "", "Project description")
 	projectAddCmd.Flags().StringVar(&projectAddStatus, "status", "active", "Project status")
 	projectAddCmd.Flags().StringVar(&projectAddSyncStrategy, "sync-strategy", "bidirectional", "Sync strategy (pull, push, or bidirectional)")
-	projectAddCmd.MarkFlagRequired("system")
-	projectAddCmd.MarkFlagRequired("external-id")
 	projectAddCmd.MarkFlagRequired("name")
 
 	// project update flags
@@ -226,16 +230,36 @@ func runProjectAdd(cmd *cobra.Command, args []string) error {
 
 	client := api.NewClient(cfg.APIURL)
 
-	// Resolve system ID
-	systemID, err := resolveSystemID(client, projectAddSystem)
-	if err != nil {
-		return err
-	}
+	var systemID int
 
-	// Validate system exists
-	_, err = client.GetSystem(context.Background(), systemID)
-	if err != nil {
-		return fmt.Errorf("system %q not found: %w", projectAddSystem, err)
+	// Handle local system auto-registration
+	if projectAddSystem == "local" {
+		systemID, err = ensureLocalSystem(client)
+		if err != nil {
+			return err
+		}
+
+		// Auto-generate external ID for local projects if not provided
+		if projectAddExternalID == "" {
+			projectAddExternalID = uuid.New().String()
+		}
+	} else {
+		// Resolve system ID for non-local systems
+		systemID, err = resolveSystemID(client, projectAddSystem)
+		if err != nil {
+			return err
+		}
+
+		// Validate system exists
+		_, err = client.GetSystem(context.Background(), systemID)
+		if err != nil {
+			return fmt.Errorf("system %q not found: %w", projectAddSystem, err)
+		}
+
+		// External ID is required for non-local systems
+		if projectAddExternalID == "" {
+			return fmt.Errorf("--external-id is required for non-local systems")
+		}
 	}
 
 	var descPtr *string
