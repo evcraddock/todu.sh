@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -312,6 +313,28 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 		if err != nil {
 			// If task not found in external system, skip (may have been deleted)
 			if err == plugin.ErrNotSupported {
+				pr.Skipped++
+				continue
+			}
+			// If task was deleted externally (not found), try to handle completed tasks
+			if errors.Is(err, plugin.ErrNotFound) {
+				// If local task is done/cancelled, it may already be completed externally
+				// Try to close it anyway in case it exists but is just not in active list
+				if toduTask.Status == "done" || toduTask.Status == "cancelled" {
+					if !dryRun {
+						taskUpdate := &types.TaskUpdate{
+							Status: &toduTask.Status,
+						}
+						_, closeErr := p.UpdateTask(ctx, &project.ExternalID, toduTask.ExternalID, taskUpdate)
+						if closeErr == nil {
+							log.Printf("  ← Closed task externally: %s", toduTask.Title)
+							pr.Updated++
+							continue
+						}
+						// If close failed, task is truly gone
+					}
+				}
+				log.Printf("  → Task %q no longer exists externally, skipping", toduTask.Title)
 				pr.Skipped++
 				continue
 			}
