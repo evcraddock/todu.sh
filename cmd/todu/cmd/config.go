@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/evcraddock/todu.sh/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -27,7 +26,7 @@ This shows the effective configuration after merging:
   2. Configuration file (~/.todu/config.yaml or ~/.config/todu/config.yaml)
   3. Environment variables (TODU_* prefix)`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := config.Load()
+		cfg, err := loadConfig()
 		if err != nil {
 			return fmt.Errorf("failed to load configuration: %w", err)
 		}

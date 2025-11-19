@@ -6,6 +6,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	configFile string
+)
+
 var rootCmd = &cobra.Command{
 	Use:   "todu",
 	Short: "Task management across multiple systems",
@@ -23,5 +27,10 @@ func Execute() {
 }
 
 func init() {
-	// Add global flags here if needed
+	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "config file path (default: ./config.yaml, ~/.config/todu/config.yaml, or ~/.todu/config.yaml)")
+}
+
+// GetConfigFile returns the config file path from the --config flag
+func GetConfigFile() string {
+	return configFile
 }

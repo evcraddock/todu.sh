@@ -28,7 +28,15 @@ type OutputConfig struct {
 }
 
 // Load loads configuration from file and environment variables
-func Load() (*Config, error) {
+// If configPath is provided, it will be used exclusively.
+// Otherwise, searches in order: ./config.yaml, ~/.config/todu/config.yaml, ~/.todu/config.yaml
+func Load(configPath string) (*Config, error) {
+	// If a specific config path is provided, use it exclusively
+	if configPath != "" {
+		return loadFromFile(configPath, true)
+	}
+
+	// Otherwise use the default search paths
 	homeDir, err := os.UserHomeDir()
 	var paths []string
 	if err == nil {
@@ -43,6 +51,43 @@ func Load() (*Config, error) {
 		paths = []string{"."}
 	}
 	return loadFromPaths(paths, true)
+}
+
+// loadFromFile loads configuration from a specific file path
+// enableEnv controls whether environment variables are read
+func loadFromFile(filePath string, enableEnv bool) (*Config, error) {
+	v := viper.New()
+
+	// Set defaults
+	v.SetDefault("api_url", "http://localhost:8000")
+	v.SetDefault("daemon.interval", "5m")
+	v.SetDefault("daemon.projects", []int{})
+	v.SetDefault("output.format", "text")
+	v.SetDefault("output.color", true)
+
+	// Enable environment variable support with TODU_ prefix
+	if enableEnv {
+		v.SetEnvPrefix("TODU")
+		// Replace dots with underscores for nested config keys
+		v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+		v.AutomaticEnv()
+	}
+
+	// Set the specific config file
+	v.SetConfigFile(filePath)
+
+	// Read config file
+	if err := v.ReadInConfig(); err != nil {
+		return nil, err
+	}
+
+	// Unmarshal into Config struct
+	var config Config
+	if err := v.Unmarshal(&config); err != nil {
+		return nil, err
+	}
+
+	return &config, nil
 }
 
 // loadFromPaths loads configuration from specified paths

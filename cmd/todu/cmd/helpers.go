@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/evcraddock/todu.sh/internal/api"
+	"github.com/evcraddock/todu.sh/internal/config"
 	"github.com/evcraddock/todu.sh/pkg/types"
 )
 
@@ -71,4 +72,9 @@ func resolveSystemID(client *api.Client, systemArg string) (int, error) {
 	}
 
 	return 0, fmt.Errorf("system %q not found", systemArg)
+}
+
+// loadConfig loads the configuration using the global --config flag if set
+func loadConfig() (*config.Config, error) {
+	return config.Load(GetConfigFile())
 }

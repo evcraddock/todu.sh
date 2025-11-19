@@ -9,7 +9,6 @@ import (
 	"text/tabwriter"
 
 	"github.com/evcraddock/todu.sh/internal/api"
-	"github.com/evcraddock/todu.sh/internal/config"
 	"github.com/evcraddock/todu.sh/internal/registry"
 	"github.com/evcraddock/todu.sh/pkg/types"
 	"github.com/google/uuid"
@@ -144,7 +143,7 @@ func init() {
 }
 
 func runProjectList(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
@@ -223,7 +222,7 @@ func runProjectAdd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid sync strategy %q: must be pull, push, or bidirectional", projectAddSyncStrategy)
 	}
 
-	cfg, err := config.Load()
+	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
@@ -296,7 +295,7 @@ func runProjectShow(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid project ID %q: must be a number", args[0])
 	}
 
-	cfg, err := config.Load()
+	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
@@ -349,7 +348,7 @@ func runProjectUpdate(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	cfg, err := config.Load()
+	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
@@ -389,7 +388,7 @@ func runProjectRemove(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid project ID %q: must be a number", args[0])
 	}
 
-	cfg, err := config.Load()
+	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
@@ -464,7 +463,7 @@ func runProjectRemove(cmd *cobra.Command, args []string) error {
 }
 
 func runProjectDiscover(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}

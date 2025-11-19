@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/evcraddock/todu.sh/internal/api"
-	"github.com/evcraddock/todu.sh/internal/config"
 	"github.com/evcraddock/todu.sh/internal/daemon"
 	"github.com/evcraddock/todu.sh/internal/registry"
 	"github.com/evcraddock/todu.sh/internal/sync"
@@ -120,7 +119,7 @@ func init() {
 }
 
 func runDaemonStart(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
@@ -161,7 +160,7 @@ func runDaemonStart(cmd *cobra.Command, args []string) error {
 }
 
 func runDaemonInstall(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}

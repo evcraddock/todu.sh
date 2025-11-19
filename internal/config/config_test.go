@@ -211,3 +211,74 @@ output:
 		t.Errorf("Expected Output.Format from local config to be 'text', got '%s'", config.Output.Format)
 	}
 }
+
+func TestLoadFromCustomPath(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := t.TempDir()
+
+	// Create a custom config file
+	customConfigPath := filepath.Join(tmpDir, "custom-config.yaml")
+	customContent := `api_url: http://custom.example.com:7000
+output:
+  format: json
+  color: false
+daemon:
+  interval: 15m
+`
+	if err := os.WriteFile(customConfigPath, []byte(customContent), 0644); err != nil {
+		t.Fatalf("Failed to write custom config file: %v", err)
+	}
+
+	// Load configuration from custom path
+	config, err := Load(customConfigPath)
+	if err != nil {
+		t.Fatalf("Expected no error when loading custom config, got: %v", err)
+	}
+
+	if config == nil {
+		t.Fatal("Expected config to be non-nil")
+	}
+
+	// Verify values from custom config file
+	if config.APIURL != "http://custom.example.com:7000" {
+		t.Errorf("Expected APIURL to be 'http://custom.example.com:7000', got '%s'", config.APIURL)
+	}
+
+	if config.Output.Format != "json" {
+		t.Errorf("Expected Output.Format to be 'json', got '%s'", config.Output.Format)
+	}
+
+	if config.Output.Color != false {
+		t.Errorf("Expected Output.Color to be false, got %v", config.Output.Color)
+	}
+
+	if config.Daemon.Interval != "15m" {
+		t.Errorf("Expected Daemon.Interval to be '15m', got '%s'", config.Daemon.Interval)
+	}
+}
+
+func TestLoadFromCustomPathNotFound(t *testing.T) {
+	// Try to load a non-existent config file
+	_, err := Load("/tmp/nonexistent-config.yaml")
+	if err == nil {
+		t.Fatal("Expected error when loading non-existent config file, got nil")
+	}
+}
+
+func TestLoadWithEmptyPath(t *testing.T) {
+	// Load with empty path should use default search paths
+	// This test will use the system's actual config if it exists, or defaults
+	config, err := Load("")
+	if err != nil {
+		t.Fatalf("Expected no error when loading with empty path, got: %v", err)
+	}
+
+	if config == nil {
+		t.Fatal("Expected config to be non-nil")
+	}
+
+	// Verify we at least have defaults
+	if config.APIURL == "" {
+		t.Error("Expected APIURL to be set (at least to default)")
+	}
+}

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/evcraddock/todu.sh/internal/api"
-	"github.com/evcraddock/todu.sh/internal/config"
 	"github.com/evcraddock/todu.sh/internal/registry"
 	"github.com/evcraddock/todu.sh/internal/sync"
 	"github.com/spf13/cobra"
@@ -60,7 +59,7 @@ func init() {
 }
 
 func runSync(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
@@ -133,7 +132,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 }
 
 func runSyncStatus(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}

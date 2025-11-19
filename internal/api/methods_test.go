@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -494,8 +495,9 @@ func TestListTasksWithFilter(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.RawQuery != "project_id=1" {
-			t.Errorf("Expected query 'project_id=1', got '%s'", r.URL.RawQuery)
+		// Check that project_id is present in query (limit is also added by default)
+		if !strings.Contains(r.URL.RawQuery, "project_id=1") {
+			t.Errorf("Expected query to contain 'project_id=1', got '%s'", r.URL.RawQuery)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(tasksResp)
@@ -503,7 +505,10 @@ func TestListTasksWithFilter(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(server.URL)
-	result, err := client.ListTasks(context.Background(), &projectID)
+	opts := &TaskListOptions{
+		ProjectID: &projectID,
+	}
+	result, err := client.ListTasks(context.Background(), opts)
 
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
