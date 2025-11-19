@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: todu_cli_postgres
+    environment:
+      POSTGRES_DB: todu
+      POSTGRES_USER: todu_user
+      POSTGRES_PASSWORD: todu_pass
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - todu_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U todu_user -d todu"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  migration:
+    image: evcraddock/todu-api:latest
+    pull_policy: always
+    container_name: todu_cli_migration
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://todu_user:todu_pass@postgres:5432/todu"
+    command: ["/bin/sh", "-c", "echo DATABASE_URL=$$DATABASE_URL && alembic upgrade head"]
+    networks:
+      - todu_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  todu-api:
+    image: evcraddock/todu-api:latest
+    pull_policy: always
+    container_name: todu_cli_api
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://todu_user:todu_pass@postgres:5432/todu"
+    ports:
+      - "8005:8000"
+    networks:
+      - todu_network
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+
+volumes:
+  postgres_data:
+
+networks:
+  todu_network:

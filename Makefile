@@ -82,4 +82,35 @@ verify: fmt vet test ## Run format, vet, and test
 .PHONY: all
 all: clean lint test build ## Clean, lint, test, and build
 
+.PHONY: dev
+dev: ## Start the development environment (postgres, migration, api)
+	./hack/shoreman.sh
+
+.PHONY: dev-docker
+dev-docker: ## Start the development environment using docker compose directly
+	docker compose up
+
+.PHONY: dev-logs
+dev-logs: ## Tail the development logs
+	@if [ -f dev.log ]; then \
+		tail -f dev.log; \
+	else \
+		echo "No dev.log found. Start the dev environment with 'make dev'"; \
+	fi
+
+.PHONY: dev-stop
+dev-stop: ## Stop the development environment
+	@if [ -f .shoreman.pid ]; then \
+		kill $(shell cat .shoreman.pid) 2>/dev/null || true; \
+		rm -f .shoreman.pid; \
+		echo "Development environment stopped"; \
+	else \
+		docker compose down 2>/dev/null || true; \
+	fi
+
+.PHONY: dev-clean
+dev-clean: dev-stop ## Stop and remove all containers, volumes, and networks
+	docker compose down -v
+	rm -f dev.log dev-prev.log .shoreman.pid
+
 .DEFAULT_GOAL := help
