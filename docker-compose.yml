@@ -22,6 +22,7 @@ services:
     image: evcraddock/todu-api:latest
     pull_policy: always
     container_name: todu_cli_migration
+    restart: "no"
     environment:
       DATABASE_URL: "postgresql+asyncpg://todu_user:todu_pass@postgres:5432/todu"
     command: ["/bin/sh", "-c", "echo DATABASE_URL=$$DATABASE_URL && alembic upgrade head"]
