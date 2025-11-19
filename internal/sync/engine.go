@@ -171,7 +171,7 @@ func (e *Engine) syncPull(ctx context.Context, project *types.Project, p plugin.
 	}
 
 	// Fetch existing tasks from Todu API
-	toduTasks, err := e.apiClient.ListTasks(ctx, &project.ID)
+	toduTasks, err := e.apiClient.ListTasks(ctx, &api.TaskListOptions{ProjectID: &project.ID})
 	if err != nil {
 		pr.Errors = append(pr.Errors, fmt.Errorf("failed to fetch Todu tasks: %w", err))
 		return
@@ -255,7 +255,7 @@ func (e *Engine) syncPull(ctx context.Context, project *types.Project, p plugin.
 // syncPush pushes tasks from Todu to external system.
 func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.Plugin, dryRun bool, pr *ProjectResult) {
 	// Fetch tasks from Todu API
-	toduTasks, err := e.apiClient.ListTasks(ctx, &project.ID)
+	toduTasks, err := e.apiClient.ListTasks(ctx, &api.TaskListOptions{ProjectID: &project.ID})
 	if err != nil {
 		pr.Errors = append(pr.Errors, fmt.Errorf("failed to fetch Todu tasks: %w", err))
 		return

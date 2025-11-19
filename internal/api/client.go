@@ -251,12 +251,39 @@ type TasksResponse struct {
 	Limit int           `json:"limit"`
 }
 
-// ListTasks retrieves all tasks, optionally filtered by project ID
-func (c *Client) ListTasks(ctx context.Context, projectID *int) ([]*types.Task, error) {
-	path := "/api/v1/tasks/"
-	if projectID != nil {
-		path = fmt.Sprintf("/api/v1/tasks/?project_id=%d", *projectID)
+// TaskListOptions contains optional filters for listing tasks
+type TaskListOptions struct {
+	ProjectID *int
+	Status    string
+	Priority  string
+	Limit     int
+}
+
+// ListTasks retrieves tasks with optional filters
+func (c *Client) ListTasks(ctx context.Context, opts *TaskListOptions) ([]*types.Task, error) {
+	path := "/api/v1/tasks/?"
+
+	if opts != nil {
+		if opts.ProjectID != nil {
+			path += fmt.Sprintf("project_id=%d&", *opts.ProjectID)
+		}
+		if opts.Status != "" {
+			path += fmt.Sprintf("status=%s&", opts.Status)
+		}
+		if opts.Priority != "" {
+			path += fmt.Sprintf("priority=%s&", opts.Priority)
+		}
+		if opts.Limit > 0 {
+			path += fmt.Sprintf("limit=%d&", opts.Limit)
+		} else {
+			path += "limit=500&"
+		}
+	} else {
+		path += "limit=500&"
 	}
+
+	// Remove trailing & or ?
+	path = path[:len(path)-1]
 
 	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {

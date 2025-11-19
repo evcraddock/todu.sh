@@ -217,17 +217,23 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Build API options with filters
+	opts := &api.TaskListOptions{
+		Status:   taskListStatus,
+		Priority: taskListPriority,
+		Limit:    taskListLimit,
+	}
+
 	// Resolve project ID from name or ID if provided
-	var projectIDPtr *int
 	if taskListProject != "" {
 		projectID, err := resolveProjectID(ctx, apiClient, taskListProject)
 		if err != nil {
 			return fmt.Errorf("failed to resolve project: %w", err)
 		}
-		projectIDPtr = &projectID
+		opts.ProjectID = &projectID
 	}
 
-	tasks, err := apiClient.ListTasks(ctx, projectIDPtr)
+	tasks, err := apiClient.ListTasks(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("failed to list tasks: %w", err)
 	}
@@ -263,17 +269,7 @@ func filterTasks(tasks []*types.Task) []*types.Task {
 	var filtered []*types.Task
 
 	for _, task := range tasks {
-		// Status filter
-		if taskListStatus != "" && task.Status != taskListStatus {
-			continue
-		}
-
-		// Priority filter
-		if taskListPriority != "" {
-			if task.Priority == nil || *task.Priority != taskListPriority {
-				continue
-			}
-		}
+		// Status and Priority are now filtered server-side via API
 
 		// Assignee filter
 		if taskListAssignee != "" {

@@ -1,0 +1,21 @@
+# Example configuration file for todu
+# Copy this to config.yaml in the project root for local development
+
+# API endpoint for todu-api
+api_url: "http://localhost:8000"
+
+# Daemon sync configuration
+daemon:
+  # How often to sync with external systems (e.g., "5m", "1h", "30s")
+  interval: "5m"
+
+  # Project IDs to sync (empty array = sync all projects)
+  projects: []
+
+# Output formatting
+output:
+  # Output format: "text" or "json"
+  format: "text"
+
+  # Enable colored output
+  color: true
