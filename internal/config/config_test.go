@@ -167,3 +167,47 @@ output:
 		t.Fatal("Expected error when loading invalid YAML, got nil")
 	}
 }
+
+func TestLocalConfigOverridesGlobal(t *testing.T) {
+	// Create two temporary directories: one for "global" config, one for "local"
+	globalDir := t.TempDir()
+	localDir := t.TempDir()
+
+	// Create global config
+	globalContent := `api_url: http://global.example.com:8000
+output:
+  format: json
+`
+	if err := os.WriteFile(filepath.Join(globalDir, "config.yaml"), []byte(globalContent), 0644); err != nil {
+		t.Fatalf("Failed to write global config file: %v", err)
+	}
+
+	// Create local config with different values
+	localContent := `api_url: http://local.example.com:9000
+output:
+  format: text
+`
+	if err := os.WriteFile(filepath.Join(localDir, "config.yaml"), []byte(localContent), 0644); err != nil {
+		t.Fatalf("Failed to write local config file: %v", err)
+	}
+
+	// Load configuration with local dir first, then global dir (no env vars)
+	// This simulates the behavior where local config should override global
+	config, err := loadFromPaths([]string{localDir, globalDir}, false)
+	if err != nil {
+		t.Fatalf("Expected no error when loading config files, got: %v", err)
+	}
+
+	if config == nil {
+		t.Fatal("Expected config to be non-nil")
+	}
+
+	// Verify that local config values are used (not global)
+	if config.APIURL != "http://local.example.com:9000" {
+		t.Errorf("Expected APIURL from local config to be 'http://local.example.com:9000', got '%s'", config.APIURL)
+	}
+
+	if config.Output.Format != "text" {
+		t.Errorf("Expected Output.Format from local config to be 'text', got '%s'", config.Output.Format)
+	}
+}

@@ -32,10 +32,12 @@ func Load() (*Config, error) {
 	homeDir, err := os.UserHomeDir()
 	var paths []string
 	if err == nil {
+		// Search local config first, then global configs
+		// This allows local development config to override global config
 		paths = []string{
-			filepath.Join(homeDir, ".todu"),
-			filepath.Join(homeDir, ".config", "todu"),
 			".",
+			filepath.Join(homeDir, ".config", "todu"),
+			filepath.Join(homeDir, ".todu"),
 		}
 	} else {
 		paths = []string{"."}
