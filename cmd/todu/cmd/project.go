@@ -288,25 +288,27 @@ func runProjectAdd(cmd *cobra.Command, args []string) error {
 }
 
 func runProjectShow(cmd *cobra.Command, args []string) error {
-	var projectID int
-	if _, err := fmt.Sscanf(args[0], "%d", &projectID); err != nil {
-		return fmt.Errorf("invalid project ID %q: must be a number", args[0])
-	}
-
 	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
 	client := api.NewClient(cfg.APIURL)
+	ctx := context.Background()
 
-	project, err := client.GetProject(context.Background(), projectID)
+	// Resolve project ID from name or ID
+	projectID, err := resolveProjectID(ctx, client, args[0])
+	if err != nil {
+		return fmt.Errorf("failed to resolve project: %w", err)
+	}
+
+	project, err := client.GetProject(ctx, projectID)
 	if err != nil {
 		return fmt.Errorf("failed to get project: %w", err)
 	}
 
 	// Fetch system details
-	system, err := client.GetSystem(context.Background(), project.SystemID)
+	system, err := client.GetSystem(ctx, project.SystemID)
 	if err != nil {
 		return fmt.Errorf("failed to get system: %w", err)
 	}
@@ -343,11 +345,6 @@ func runProjectShow(cmd *cobra.Command, args []string) error {
 }
 
 func runProjectUpdate(cmd *cobra.Command, args []string) error {
-	var projectID int
-	if _, err := fmt.Sscanf(args[0], "%d", &projectID); err != nil {
-		return fmt.Errorf("invalid project ID %q: must be a number", args[0])
-	}
-
 	// Validate sync strategy if provided
 	if projectUpdateSyncStrategy != "" {
 		validStrategies := map[string]bool{
@@ -366,6 +363,13 @@ func runProjectUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	client := api.NewClient(cfg.APIURL)
+	ctx := context.Background()
+
+	// Resolve project ID from name or ID
+	projectID, err := resolveProjectID(ctx, client, args[0])
+	if err != nil {
+		return fmt.Errorf("failed to resolve project: %w", err)
+	}
 
 	projectUpdate := &types.ProjectUpdate{}
 
@@ -382,7 +386,7 @@ func runProjectUpdate(cmd *cobra.Command, args []string) error {
 		projectUpdate.SyncStrategy = &projectUpdateSyncStrategy
 	}
 
-	project, err := client.UpdateProject(context.Background(), projectID, projectUpdate)
+	project, err := client.UpdateProject(ctx, projectID, projectUpdate)
 	if err != nil {
 		return fmt.Errorf("failed to update project: %w", err)
 	}
@@ -395,20 +399,22 @@ func runProjectUpdate(cmd *cobra.Command, args []string) error {
 }
 
 func runProjectRemove(cmd *cobra.Command, args []string) error {
-	var projectID int
-	if _, err := fmt.Sscanf(args[0], "%d", &projectID); err != nil {
-		return fmt.Errorf("invalid project ID %q: must be a number", args[0])
-	}
-
 	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
 	client := api.NewClient(cfg.APIURL)
+	ctx := context.Background()
+
+	// Resolve project ID from name or ID
+	projectID, err := resolveProjectID(ctx, client, args[0])
+	if err != nil {
+		return fmt.Errorf("failed to resolve project: %w", err)
+	}
 
 	// Fetch project for confirmation
-	project, err := client.GetProject(context.Background(), projectID)
+	project, err := client.GetProject(ctx, projectID)
 	if err != nil {
 		return fmt.Errorf("failed to get project: %w", err)
 	}
@@ -426,7 +432,7 @@ func runProjectRemove(cmd *cobra.Command, args []string) error {
 	}
 
 	// Delete project
-	err = client.DeleteProject(context.Background(), projectID, projectRemoveCascade)
+	err = client.DeleteProject(ctx, projectID, projectRemoveCascade)
 	if err != nil {
 		// Check if it's because of associated tasks
 		if strings.Contains(err.Error(), "tasks") || strings.Contains(err.Error(), "associated") {
@@ -452,7 +458,7 @@ func runProjectRemove(cmd *cobra.Command, args []string) error {
 				response = strings.ToLower(strings.TrimSpace(response))
 				if response == "y" || response == "yes" {
 					// Retry with cascade
-					err = client.DeleteProject(context.Background(), projectID, true)
+					err = client.DeleteProject(ctx, projectID, true)
 					if err != nil {
 						return fmt.Errorf("failed to remove project with cascade: %w", err)
 					}
