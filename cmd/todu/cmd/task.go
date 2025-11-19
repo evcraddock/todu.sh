@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/evcraddock/todu.sh/internal/api"
-	"github.com/evcraddock/todu.sh/internal/config"
 	"github.com/evcraddock/todu.sh/pkg/types"
 	"github.com/spf13/cobra"
 )
@@ -185,7 +184,7 @@ func init() {
 }
 
 func runTaskList(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
@@ -403,7 +402,7 @@ func displayTasksJSON(tasks []*types.Task) error {
 }
 
 func runTaskShow(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
@@ -497,7 +496,7 @@ func displayTask(task *types.Task, comments []*types.Comment) {
 }
 
 func runTaskCreate(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
@@ -571,7 +570,7 @@ func runTaskCreate(cmd *cobra.Command, args []string) error {
 }
 
 func runTaskUpdate(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
@@ -699,13 +698,12 @@ func runTaskUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to update task: %w", err)
 	}
 
-	fmt.Println("Task updated successfully:")
-	displayTask(task, []*types.Comment{})
+	fmt.Printf("Task #%d updated successfully\n", task.ID)
 	return nil
 }
 
 func runTaskClose(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
@@ -737,7 +735,7 @@ func runTaskClose(cmd *cobra.Command, args []string) error {
 }
 
 func runTaskComment(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
@@ -782,7 +780,7 @@ func runTaskComment(cmd *cobra.Command, args []string) error {
 }
 
 func runTaskDelete(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
