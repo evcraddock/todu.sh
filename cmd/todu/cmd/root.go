@@ -7,7 +7,8 @@ import (
 )
 
 var (
-	configFile string
+	configFile   string
+	outputFormat string
 )
 
 var rootCmd = &cobra.Command{
@@ -28,9 +29,15 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "config file path (default: ./config.yaml, ~/.config/todu/config.yaml, or ~/.todu/config.yaml)")
+	rootCmd.PersistentFlags().StringVar(&outputFormat, "format", "text", "output format (text|json)")
 }
 
 // GetConfigFile returns the config file path from the --config flag
 func GetConfigFile() string {
 	return configFile
+}
+
+// GetOutputFormat returns the output format from the --format flag
+func GetOutputFormat() string {
+	return outputFormat
 }

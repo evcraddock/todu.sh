@@ -87,7 +87,6 @@ projects and shows which ones are already registered in todu.`,
 
 var (
 	projectListSystem     string
-	projectListFormat     string
 	projectAddSystem      string
 	projectAddExternalID  string
 	projectAddName        string
@@ -115,7 +114,6 @@ func init() {
 
 	// project list flags
 	projectListCmd.Flags().StringVar(&projectListSystem, "system", "", "Filter by system ID or name")
-	projectListCmd.Flags().StringVar(&projectListFormat, "format", "table", "Output format (table or json)")
 
 	// project add flags
 	projectAddCmd.Flags().StringVar(&projectAddSystem, "system", "local", "System ID or name (default: local)")
@@ -175,7 +173,7 @@ func runProjectList(cmd *cobra.Command, args []string) error {
 		systemNames[sys.ID] = sys.Identifier
 	}
 
-	if projectListFormat == "json" {
+	if GetOutputFormat() == "json" {
 		encoder := json.NewEncoder(os.Stdout)
 		encoder.SetIndent("", "  ")
 		return encoder.Encode(projects)
@@ -311,6 +309,20 @@ func runProjectShow(cmd *cobra.Command, args []string) error {
 	system, err := client.GetSystem(context.Background(), project.SystemID)
 	if err != nil {
 		return fmt.Errorf("failed to get system: %w", err)
+	}
+
+	// Display results
+	if GetOutputFormat() == "json" {
+		output := map[string]interface{}{
+			"project": project,
+			"system":  system,
+		}
+		data, err := json.MarshalIndent(output, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+		fmt.Println(string(data))
+		return nil
 	}
 
 	fmt.Printf("Project ID: %d\n", project.ID)

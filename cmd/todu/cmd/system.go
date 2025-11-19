@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -80,7 +81,6 @@ var (
 	systemAddURL        string
 	systemAddMetadata   []string
 	systemRemoveForce   bool
-	outputFormat        string
 )
 
 func init() {
@@ -101,9 +101,6 @@ func init() {
 
 	// system remove flags
 	systemRemoveCmd.Flags().BoolVar(&systemRemoveForce, "force", false, "Skip confirmation prompt")
-
-	// system list flags
-	systemListCmd.Flags().StringVar(&outputFormat, "format", "table", "Output format (table or json)")
 }
 
 func runSystemList(cmd *cobra.Command, args []string) error {
@@ -118,9 +115,10 @@ func runSystemList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to list systems: %w", err)
 	}
 
-	if outputFormat == "json" {
-		// TODO: Implement JSON output
-		return fmt.Errorf("JSON output not yet implemented")
+	if GetOutputFormat() == "json" {
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		return encoder.Encode(systems)
 	}
 
 	// Table output

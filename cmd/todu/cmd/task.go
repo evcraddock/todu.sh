@@ -98,7 +98,6 @@ var (
 	taskListDueBefore  string
 	taskListDueAfter   string
 	taskListLimit      int
-	taskListFormat     string
 
 	// Create flags
 	taskCreateTitle       string
@@ -151,7 +150,6 @@ func init() {
 	taskListCmd.Flags().StringVar(&taskListDueBefore, "due-before", "", "Due before date (YYYY-MM-DD)")
 	taskListCmd.Flags().StringVar(&taskListDueAfter, "due-after", "", "Due after date (YYYY-MM-DD)")
 	taskListCmd.Flags().IntVar(&taskListLimit, "limit", 50, "Limit number of results")
-	taskListCmd.Flags().StringVar(&taskListFormat, "format", "text", "Output format (text|json)")
 
 	// Create flags
 	taskCreateCmd.Flags().StringVar(&taskCreateTitle, "title", "", "Task title (required)")
@@ -257,7 +255,7 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 	}
 
 	// Display results
-	if taskListFormat == "json" {
+	if GetOutputFormat() == "json" {
 		return displayTasksJSON(tasks)
 	}
 
@@ -431,7 +429,25 @@ func runTaskShow(cmd *cobra.Command, args []string) error {
 		comments = []*types.Comment{}
 	}
 
+	// Display results
+	if GetOutputFormat() == "json" {
+		return displayTaskJSON(task, comments)
+	}
+
 	displayTask(task, comments)
+	return nil
+}
+
+func displayTaskJSON(task *types.Task, comments []*types.Comment) error {
+	output := map[string]interface{}{
+		"task":     task,
+		"comments": comments,
+	}
+	data, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+	fmt.Println(string(data))
 	return nil
 }
 
