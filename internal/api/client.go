@@ -390,9 +390,17 @@ func (c *Client) GetComment(ctx context.Context, id int) (*types.Comment, error)
 	return &comment, nil
 }
 
-// CreateComment creates a new comment
+// CreateComment creates a new comment or journal entry
 func (c *Client) CreateComment(ctx context.Context, comment *types.CommentCreate) (*types.Comment, error) {
-	path := fmt.Sprintf("/api/v1/tasks/%d/comments", comment.TaskID)
+	var path string
+	if comment.TaskID != nil {
+		// Task comment: use task-specific endpoint
+		path = fmt.Sprintf("/api/v1/tasks/%d/comments", *comment.TaskID)
+	} else {
+		// Journal entry: use general comments endpoint
+		path = "/api/v1/comments"
+	}
+
 	resp, err := c.doRequest(ctx, http.MethodPost, path, comment)
 	if err != nil {
 		return nil, err
@@ -431,4 +439,36 @@ func (c *Client) DeleteComment(ctx context.Context, id int) error {
 	}
 
 	return parseResponse(resp, nil)
+}
+
+// ListJournals retrieves all journal entries (comments without task_id)
+func (c *Client) ListJournals(ctx context.Context, skip, limit int) ([]*types.Comment, error) {
+	path := fmt.Sprintf("/api/v1/comments?type=journal&skip=%d&limit=%d", skip, limit)
+	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var journals []*types.Comment
+	if err := parseResponse(resp, &journals); err != nil {
+		return nil, err
+	}
+
+	return journals, nil
+}
+
+// ListAllComments retrieves all comments and journal entries with optional type filter
+func (c *Client) ListAllComments(ctx context.Context, commentType string, skip, limit int) ([]*types.Comment, error) {
+	path := fmt.Sprintf("/api/v1/comments?type=%s&skip=%d&limit=%d", commentType, skip, limit)
+	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var comments []*types.Comment
+	if err := parseResponse(resp, &comments); err != nil {
+		return nil, err
+	}
+
+	return comments, nil
 }

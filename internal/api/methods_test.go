@@ -641,10 +641,11 @@ func TestDeleteTask(t *testing.T) {
 
 func TestListComments(t *testing.T) {
 	now := time.Now()
+	taskID := 1
 	comments := []*types.Comment{
 		{
 			ID:        1,
-			TaskID:    1,
+			TaskID:    &taskID,
 			Content:   "Test comment",
 			Author:    "user1",
 			CreatedAt: now,
@@ -674,9 +675,10 @@ func TestListComments(t *testing.T) {
 
 func TestGetComment(t *testing.T) {
 	now := time.Now()
+	taskID := 1
 	comment := &types.Comment{
 		ID:        1,
-		TaskID:    1,
+		TaskID:    &taskID,
 		Content:   "Test comment",
 		Author:    "user1",
 		CreatedAt: now,
@@ -705,14 +707,15 @@ func TestGetComment(t *testing.T) {
 
 func TestCreateComment(t *testing.T) {
 	now := time.Now()
+	taskID := 1
 	create := &types.CommentCreate{
-		TaskID:  1,
+		TaskID:  &taskID,
 		Content: "Test comment",
 		Author:  "user1",
 	}
 	created := &types.Comment{
 		ID:        1,
-		TaskID:    1,
+		TaskID:    &taskID,
 		Content:   "Test comment",
 		Author:    "user1",
 		CreatedAt: now,

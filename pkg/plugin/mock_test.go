@@ -237,8 +237,9 @@ func TestMockPluginCreateComment(t *testing.T) {
 	mock.AddTask("task-1", task)
 
 	// Create a comment
+	taskID := 1
 	commentCreate := &types.CommentCreate{
-		TaskID:  1,
+		TaskID:  &taskID,
 		Content: "Test comment",
 		Author:  "testuser",
 	}

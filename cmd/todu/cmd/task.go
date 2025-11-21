@@ -765,21 +765,32 @@ func runTaskComment(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid task ID: %s", args[0])
 	}
 
-	// Get comment text from args or flag
+	// Get comment text from args, flag, or editor
 	var commentText string
 	if taskCommentMessage != "" {
 		commentText = taskCommentMessage
 	} else if len(args) > 1 {
 		commentText = strings.Join(args[1:], " ")
 	} else {
-		return fmt.Errorf("comment text required (provide as argument or via --message flag)")
+		// No text provided, open editor
+		editedContent, err := openEditor("")
+		if err != nil {
+			return fmt.Errorf("failed to open editor: %w", err)
+		}
+		commentText = editedContent
+	}
+
+	// Check if content is empty
+	if commentText == "" {
+		fmt.Println("Empty comment. Cancelled.")
+		return nil
 	}
 
 	apiClient := api.NewClient(cfg.APIURL)
 	ctx := context.Background()
 
 	commentCreate := &types.CommentCreate{
-		TaskID:  taskID,
+		TaskID:  &taskID,
 		Content: commentText,
 		Author:  taskCommentAuthor,
 	}

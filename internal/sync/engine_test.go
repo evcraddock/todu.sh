@@ -209,9 +209,10 @@ func handleMockAPI(t *testing.T, w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		taskID := 1
 		comment := &types.Comment{
 			ID:         1,
-			TaskID:     1,
+			TaskID:     &taskID,
 			ExternalID: *commentUpdate.ExternalID,
 			Content:    "Test comment",
 			Author:     "test-user",

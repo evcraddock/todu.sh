@@ -423,8 +423,9 @@ func (e *Engine) syncPullComments(ctx context.Context, project *types.Project, p
 		if !exists {
 			// Comment doesn't exist in Todu, create it
 			if !dryRun {
+				taskID := toduTask.ID
 				commentCreate := &types.CommentCreate{
-					TaskID:     toduTask.ID,
+					TaskID:     &taskID,
 					ExternalID: externalComment.ExternalID,
 					Content:    externalComment.Content,
 					Author:     externalComment.Author,

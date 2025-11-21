@@ -80,7 +80,6 @@ dmypy.json
 Thumbs.db
 
 # Config files that may contain secrets
-config.yaml
 .env
 .env.local
 .env.*.local
