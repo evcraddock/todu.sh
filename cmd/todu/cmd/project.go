@@ -190,7 +190,7 @@ func runProjectList(cmd *cobra.Command, args []string) error {
 
 	// Table output
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tNAME\tSYSTEM\tEXTERNAL ID\tSTATUS\tPRIORITY\tSYNC STRATEGY\tLAST SYNCED")
+	fmt.Fprintln(w, "ID\tNAME\tSYSTEM\tSTATUS\tPRIORITY\tLAST SYNCED")
 
 	for _, project := range projects {
 		systemName := systemNames[project.SystemID]
@@ -208,14 +208,12 @@ func runProjectList(cmd *cobra.Command, args []string) error {
 			priority = *project.Priority
 		}
 
-		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%s\n",
 			project.ID,
 			truncateString(project.Name, 30),
 			systemName,
-			truncateString(project.ExternalID, 30),
 			project.Status,
 			priority,
-			project.SyncStrategy,
 			lastSynced,
 		)
 	}
