@@ -318,9 +318,9 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 			}
 			// If task was deleted externally (not found), try to handle completed tasks
 			if errors.Is(err, plugin.ErrNotFound) {
-				// If local task is done/cancelled, it may already be completed externally
+				// If local task is done/canceled, it may already be completed externally
 				// Try to close it anyway in case it exists but is just not in active list
-				if toduTask.Status == "done" || toduTask.Status == "cancelled" {
+				if toduTask.Status == "done" || toduTask.Status == "canceled" {
 					if !dryRun {
 						taskUpdate := &types.TaskUpdate{
 							Status: &toduTask.Status,

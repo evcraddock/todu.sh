@@ -155,7 +155,7 @@
 - `title` (string, 1-500 chars) - Task title
 - `description` (string, max 5000 chars, optional) - Task description
 - `project_id` (int, optional) - Associated project
-- `status` (string) - active, inprogress, waiting, done, cancelled
+- `status` (string) - active, inprogress, waiting, done, canceled
 - `priority` (string, optional) - high, medium, low
 - `due_date` (date, optional) - Due date
 - `created_at`, `updated_at` (datetime) - Timestamps
@@ -169,7 +169,7 @@
 - `description` (string, max 2000 chars, optional)
 - `system_id` (int, optional) - Links to external system
 - `external_id` (string, optional) - External system identifier (e.g., "owner/repo")
-- `status` (string) - active, done, cancelled
+- `status` (string) - active, done, canceled
 - `created_at`, `updated_at` (datetime)
 
 **System Model** (represents external task systems):

@@ -21,14 +21,14 @@ import (
 //
 // Status Mapping (Todu → GitHub):
 //   - done       → state: "closed", state_reason: "completed"
-//   - cancelled  → state: "closed", state_reason: "not_planned"
+//   - canceled  → state: "closed", state_reason: "not_planned"
 //   - active     → state: "open"
 //   - inprogress → state: "open"
 //   - waiting    → state: "open"
 //
 // Status Mapping (GitHub → Todu):
 //   - state: "closed", state_reason: "completed"   → done
-//   - state: "closed", state_reason: "not_planned" → cancelled
+//   - state: "closed", state_reason: "not_planned" → canceled
 //   - state: "closed", state_reason: null/other    → done (backward compatibility)
 //   - state: "open"                                → active
 //
@@ -170,7 +170,7 @@ func commentToComment(comment *github.IssueComment) *types.Comment {
 //
 // Mappings:
 //   - done       → state: "closed", state_reason: "completed"
-//   - cancelled  → state: "closed", state_reason: "not_planned"
+//   - canceled  → state: "closed", state_reason: "not_planned"
 //   - active     → state: "open", state_reason: ""
 //   - inprogress → state: "open", state_reason: ""
 //   - waiting    → state: "open", state_reason: ""
@@ -178,7 +178,7 @@ func mapToduStatusToGitHub(status string) (state string, stateReason string) {
 	switch status {
 	case "done":
 		return "closed", "completed"
-	case "cancelled":
+	case "canceled":
 		return "closed", "not_planned"
 	default:
 		// active, inprogress, waiting, and any other status map to open
@@ -190,13 +190,13 @@ func mapToduStatusToGitHub(status string) (state string, stateReason string) {
 //
 // Mappings:
 //   - state: "closed", state_reason: "completed"   → done
-//   - state: "closed", state_reason: "not_planned" → cancelled
+//   - state: "closed", state_reason: "not_planned" → canceled
 //   - state: "closed", state_reason: ""            → done (backward compatibility)
 //   - state: "open"                                → active
 func mapGitHubStatusToTodu(state string, stateReason string) string {
 	if state == "closed" {
 		if stateReason == "not_planned" {
-			return "cancelled"
+			return "canceled"
 		}
 		// Default closed issues to "done" (includes "completed" and nil for backward compatibility)
 		return "done"

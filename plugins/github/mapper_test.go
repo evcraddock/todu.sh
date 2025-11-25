@@ -23,8 +23,8 @@ func TestMapToduStatusToGitHub(t *testing.T) {
 			expectedStateReason: "completed",
 		},
 		{
-			name:              "cancelled maps to closed+not_planned",
-			toduStatus:        "cancelled",
+			name:              "canceled maps to closed+not_planned",
+			toduStatus:        "canceled",
 			expectedState:     "closed",
 			expectedStateReason: "not_planned",
 		},
@@ -82,10 +82,10 @@ func TestMapGitHubStatusToTodu(t *testing.T) {
 			expectedStatus: "done",
 		},
 		{
-			name:           "closed+not_planned maps to cancelled",
+			name:           "closed+not_planned maps to canceled",
 			githubState:    "closed",
 			githubStateReason: "not_planned",
-			expectedStatus: "cancelled",
+			expectedStatus: "canceled",
 		},
 		{
 			name:           "closed with no state_reason maps to done (backward compatibility)",
@@ -145,7 +145,7 @@ func TestIssueToTask_StatusMapping(t *testing.T) {
 			name:           "closed issue with not_planned reason",
 			githubState:    "closed",
 			githubStateReason: "not_planned",
-			expectedStatus: "cancelled",
+			expectedStatus: "canceled",
 		},
 		{
 			name:           "closed issue without state_reason (backward compatibility)",
@@ -198,8 +198,8 @@ func TestTaskUpdateToIssueRequest_StatusMapping(t *testing.T) {
 			expectedStateReason: github.String("completed"),
 		},
 		{
-			name:              "cancelled status sets not_planned state_reason",
-			toduStatus:        "cancelled",
+			name:              "canceled status sets not_planned state_reason",
+			toduStatus:        "canceled",
 			expectedState:     "closed",
 			expectedStateReason: github.String("not_planned"),
 		},

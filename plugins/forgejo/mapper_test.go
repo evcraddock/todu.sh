@@ -22,8 +22,8 @@ func TestMapToduStatusToForgejo(t *testing.T) {
 			expectedStateReason: "completed",
 		},
 		{
-			name:                "cancelled maps to closed+not_planned",
-			toduStatus:          "cancelled",
+			name:                "canceled maps to closed+not_planned",
+			toduStatus:          "canceled",
 			expectedState:       "closed",
 			expectedStateReason: "not_planned",
 		},
@@ -81,10 +81,10 @@ func TestMapForgejoStatusToTodu(t *testing.T) {
 			expectedStatus:     "done",
 		},
 		{
-			name:               "closed+not_planned maps to cancelled",
+			name:               "closed+not_planned maps to canceled",
 			forgejoState:       "closed",
 			forgejoStateReason: "not_planned",
-			expectedStatus:     "cancelled",
+			expectedStatus:     "canceled",
 		},
 		{
 			name:               "closed with no state_reason maps to done (backward compatibility)",
@@ -144,7 +144,7 @@ func TestIssueToTask_StatusMapping(t *testing.T) {
 			name:               "closed issue with not_planned reason",
 			forgejoState:       "closed",
 			forgejoStateReason: "not_planned",
-			expectedStatus:     "cancelled",
+			expectedStatus:     "canceled",
 		},
 		{
 			name:               "closed issue without state_reason (backward compatibility)",
@@ -195,8 +195,8 @@ func TestTaskUpdateToIssueRequest_StatusMapping(t *testing.T) {
 			expectedState: "closed",
 		},
 		{
-			name:          "cancelled status sets closed state",
-			toduStatus:    "cancelled",
+			name:          "canceled status sets closed state",
+			toduStatus:    "canceled",
 			expectedState: "closed",
 		},
 		{

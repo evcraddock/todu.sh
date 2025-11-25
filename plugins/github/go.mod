@@ -1,6 +1,6 @@
 module github.com/evcraddock/todu.sh/plugins/github
 
-go 1.24.5
+go 1.24.6
 
 require (
 	github.com/evcraddock/todu.sh v0.1.0
