@@ -160,11 +160,30 @@ func (c *Client) DeleteSystem(ctx context.Context, id int) error {
 
 // Project Methods
 
-// ListProjects retrieves all projects, optionally filtered by system ID
-func (c *Client) ListProjects(ctx context.Context, systemID *int) ([]*types.Project, error) {
-	path := "/api/v1/projects/"
-	if systemID != nil {
-		path = fmt.Sprintf("/api/v1/projects/?system_id=%d", *systemID)
+// ProjectListOptions contains optional filters for listing projects
+type ProjectListOptions struct {
+	SystemID *int
+	Priority []string
+}
+
+// ListProjects retrieves all projects, optionally filtered
+func (c *Client) ListProjects(ctx context.Context, opts *ProjectListOptions) ([]*types.Project, error) {
+	path := "/api/v1/projects/?"
+
+	if opts != nil {
+		if opts.SystemID != nil {
+			path += fmt.Sprintf("system_id=%d&", *opts.SystemID)
+		}
+		if len(opts.Priority) > 0 {
+			for _, p := range opts.Priority {
+				path += fmt.Sprintf("priority=%s&", p)
+			}
+		}
+	}
+
+	// Remove trailing & or ?
+	if path[len(path)-1] == '&' || path[len(path)-1] == '?' {
+		path = path[:len(path)-1]
 	}
 
 	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
@@ -253,10 +272,12 @@ type TasksResponse struct {
 
 // TaskListOptions contains optional filters for listing tasks
 type TaskListOptions struct {
-	ProjectID *int
-	Status    string
-	Priority  string
-	Limit     int
+	ProjectID       *int
+	Status          string
+	Priority        string
+	ProjectStatus   []string
+	ProjectPriority []string
+	Limit           int
 }
 
 // ListTasks retrieves tasks with optional filters
@@ -272,6 +293,16 @@ func (c *Client) ListTasks(ctx context.Context, opts *TaskListOptions) ([]*types
 		}
 		if opts.Priority != "" {
 			path += fmt.Sprintf("priority=%s&", opts.Priority)
+		}
+		if len(opts.ProjectStatus) > 0 {
+			for _, ps := range opts.ProjectStatus {
+				path += fmt.Sprintf("project_status=%s&", ps)
+			}
+		}
+		if len(opts.ProjectPriority) > 0 {
+			for _, pp := range opts.ProjectPriority {
+				path += fmt.Sprintf("project_priority=%s&", pp)
+			}
 		}
 		if opts.Limit > 0 {
 			path += fmt.Sprintf("limit=%d&", opts.Limit)
@@ -417,7 +448,7 @@ func (c *Client) CreateComment(ctx context.Context, comment *types.CommentCreate
 // UpdateComment updates an existing comment
 func (c *Client) UpdateComment(ctx context.Context, id int, comment *types.CommentUpdate) (*types.Comment, error) {
 	path := fmt.Sprintf("/api/v1/comments/%d", id)
-	resp, err := c.doRequest(ctx, http.MethodPut, path, comment)
+	resp, err := c.doRequest(ctx, http.MethodPatch, path, comment)
 	if err != nil {
 		return nil, err
 	}

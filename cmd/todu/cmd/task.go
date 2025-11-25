@@ -88,16 +88,18 @@ var taskDeleteCmd = &cobra.Command{
 
 var (
 	// List flags
-	taskListStatus     string
-	taskListPriority   string
-	taskListProject    string
-	taskListSystem     string
-	taskListAssignee   string
-	taskListLabels     []string
-	taskListSearch     string
-	taskListDueBefore  string
-	taskListDueAfter   string
-	taskListLimit      int
+	taskListStatus          string
+	taskListPriority        string
+	taskListProject         string
+	taskListSystem          string
+	taskListProjectStatus   string
+	taskListProjectPriority string
+	taskListAssignee        string
+	taskListLabels          []string
+	taskListSearch          string
+	taskListDueBefore       string
+	taskListDueAfter        string
+	taskListLimit           int
 
 	// Create flags
 	taskCreateTitle       string
@@ -144,6 +146,8 @@ func init() {
 	taskListCmd.Flags().StringVar(&taskListPriority, "priority", "", "Filter by priority")
 	taskListCmd.Flags().StringVarP(&taskListProject, "project", "p", "", "Filter by project ID or name")
 	taskListCmd.Flags().StringVar(&taskListSystem, "system", "", "Filter by system ID or name")
+	taskListCmd.Flags().StringVar(&taskListProjectStatus, "project-status", "", "Filter by project status (comma-separated: active, done, canceled)")
+	taskListCmd.Flags().StringVar(&taskListProjectPriority, "project-priority", "", "Filter by project priority (comma-separated: low, medium, high)")
 	taskListCmd.Flags().StringVar(&taskListAssignee, "assignee", "", "Filter by assignee")
 	taskListCmd.Flags().StringSliceVar(&taskListLabels, "label", []string{}, "Filter by label (repeatable)")
 	taskListCmd.Flags().StringVar(&taskListSearch, "search", "", "Full-text search")
@@ -203,7 +207,7 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 		}
 
 		// Get all projects for this system
-		projects, err := apiClient.ListProjects(ctx, &systemID)
+		projects, err := apiClient.ListProjects(ctx, &api.ProjectListOptions{SystemID: &systemID})
 		if err != nil {
 			return fmt.Errorf("failed to list projects for system: %w", err)
 		}
@@ -219,6 +223,24 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 		Status:   taskListStatus,
 		Priority: taskListPriority,
 		Limit:    taskListLimit,
+	}
+
+	// Parse project status filter (comma-separated)
+	if taskListProjectStatus != "" {
+		opts.ProjectStatus = strings.Split(taskListProjectStatus, ",")
+		// Trim whitespace from each value
+		for i := range opts.ProjectStatus {
+			opts.ProjectStatus[i] = strings.TrimSpace(opts.ProjectStatus[i])
+		}
+	}
+
+	// Parse project priority filter (comma-separated)
+	if taskListProjectPriority != "" {
+		opts.ProjectPriority = strings.Split(taskListProjectPriority, ",")
+		// Trim whitespace from each value
+		for i := range opts.ProjectPriority {
+			opts.ProjectPriority[i] = strings.TrimSpace(opts.ProjectPriority[i])
+		}
 	}
 
 	// Resolve project ID from name or ID if provided
@@ -346,7 +368,7 @@ func displayTasksTable(ctx context.Context, apiClient *api.Client, tasks []*type
 
 	// Fetch projects for name lookup
 	projectNames := make(map[int]string)
-	projects, err := apiClient.ListProjects(ctx, nil)
+	projects, err := apiClient.ListProjects(ctx, nil) // nil opts fetches all projects
 	if err == nil {
 		for _, p := range projects {
 			projectNames[p.ID] = p.Name

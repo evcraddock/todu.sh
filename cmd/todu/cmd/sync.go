@@ -146,16 +146,16 @@ func runSyncStatus(cmd *cobra.Command, args []string) error {
 
 	// Get projects
 	ctx := context.Background()
-	var systemIDPtr *int
+	opts := &api.ProjectListOptions{}
 	if syncStatusSystem != "" {
 		systemID, err := resolveSystemID(apiClient, syncStatusSystem)
 		if err != nil {
 			return err
 		}
-		systemIDPtr = &systemID
+		opts.SystemID = &systemID
 	}
 
-	projects, err := apiClient.ListProjects(ctx, systemIDPtr)
+	projects, err := apiClient.ListProjects(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("failed to list projects: %w", err)
 	}

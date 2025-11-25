@@ -86,16 +86,19 @@ projects and shows which ones are already registered in todu.`,
 }
 
 var (
-	projectListSystem     string
-	projectAddSystem      string
-	projectAddExternalID  string
-	projectAddName        string
-	projectAddDescription string
-	projectAddStatus      string
-	projectAddSyncStrategy string
+	projectListSystem       string
+	projectListPriority     []string
+	projectAddSystem        string
+	projectAddExternalID    string
+	projectAddName          string
+	projectAddDescription   string
+	projectAddStatus        string
+	projectAddPriority      string
+	projectAddSyncStrategy  string
 	projectUpdateName        string
 	projectUpdateDescription string
 	projectUpdateStatus      string
+	projectUpdatePriority    string
 	projectUpdateSyncStrategy string
 	projectRemoveForce       bool
 	projectRemoveCascade     bool
@@ -114,6 +117,7 @@ func init() {
 
 	// project list flags
 	projectListCmd.Flags().StringVar(&projectListSystem, "system", "", "Filter by system ID or name")
+	projectListCmd.Flags().StringSliceVar(&projectListPriority, "priority", nil, "Filter by priority (low, medium, high) - can be specified multiple times")
 
 	// project add flags
 	projectAddCmd.Flags().StringVar(&projectAddSystem, "system", "local", "System ID or name (default: local)")
@@ -121,6 +125,7 @@ func init() {
 	projectAddCmd.Flags().StringVar(&projectAddName, "name", "", "Project name (required)")
 	projectAddCmd.Flags().StringVar(&projectAddDescription, "description", "", "Project description")
 	projectAddCmd.Flags().StringVar(&projectAddStatus, "status", "active", "Project status")
+	projectAddCmd.Flags().StringVar(&projectAddPriority, "priority", "", "Project priority (low, medium, high)")
 	projectAddCmd.Flags().StringVar(&projectAddSyncStrategy, "sync-strategy", "bidirectional", "Sync strategy (pull, push, or bidirectional)")
 	projectAddCmd.MarkFlagRequired("name")
 
@@ -128,6 +133,7 @@ func init() {
 	projectUpdateCmd.Flags().StringVar(&projectUpdateName, "name", "", "Project name")
 	projectUpdateCmd.Flags().StringVar(&projectUpdateDescription, "description", "", "Project description")
 	projectUpdateCmd.Flags().StringVar(&projectUpdateStatus, "status", "", "Project status")
+	projectUpdateCmd.Flags().StringVar(&projectUpdatePriority, "priority", "", "Project priority (low, medium, high)")
 	projectUpdateCmd.Flags().StringVar(&projectUpdateSyncStrategy, "sync-strategy", "", "Sync strategy (pull, push, or bidirectional)")
 
 	// project remove flags
@@ -148,16 +154,19 @@ func runProjectList(cmd *cobra.Command, args []string) error {
 
 	client := api.NewClient(cfg.APIURL)
 
-	var systemIDPtr *int
+	opts := &api.ProjectListOptions{}
 	if projectListSystem != "" {
 		systemID, err := resolveSystemID(client, projectListSystem)
 		if err != nil {
 			return err
 		}
-		systemIDPtr = &systemID
+		opts.SystemID = &systemID
+	}
+	if len(projectListPriority) > 0 {
+		opts.Priority = projectListPriority
 	}
 
-	projects, err := client.ListProjects(context.Background(), systemIDPtr)
+	projects, err := client.ListProjects(context.Background(), opts)
 	if err != nil {
 		return fmt.Errorf("failed to list projects: %w", err)
 	}
@@ -181,7 +190,7 @@ func runProjectList(cmd *cobra.Command, args []string) error {
 
 	// Table output
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tNAME\tSYSTEM\tEXTERNAL ID\tSTATUS\tSYNC STRATEGY\tLAST SYNCED")
+	fmt.Fprintln(w, "ID\tNAME\tSYSTEM\tEXTERNAL ID\tSTATUS\tPRIORITY\tSYNC STRATEGY\tLAST SYNCED")
 
 	for _, project := range projects {
 		systemName := systemNames[project.SystemID]
@@ -194,12 +203,18 @@ func runProjectList(cmd *cobra.Command, args []string) error {
 			lastSynced = project.LastSyncedAt.Format("2006-01-02 15:04")
 		}
 
-		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		priority := ""
+		if project.Priority != nil {
+			priority = *project.Priority
+		}
+
+		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			project.ID,
 			truncateString(project.Name, 30),
 			systemName,
 			truncateString(project.ExternalID, 30),
 			project.Status,
+			priority,
 			project.SyncStrategy,
 			lastSynced,
 		)
@@ -218,6 +233,14 @@ func runProjectAdd(cmd *cobra.Command, args []string) error {
 	}
 	if !validStrategies[projectAddSyncStrategy] {
 		return fmt.Errorf("invalid sync strategy %q: must be pull, push, or bidirectional", projectAddSyncStrategy)
+	}
+
+	// Validate priority if provided
+	if projectAddPriority != "" {
+		validPriorities := map[string]bool{"low": true, "medium": true, "high": true}
+		if !validPriorities[projectAddPriority] {
+			return fmt.Errorf("invalid priority %q: must be low, medium, or high", projectAddPriority)
+		}
 	}
 
 	cfg, err := loadConfig()
@@ -264,12 +287,18 @@ func runProjectAdd(cmd *cobra.Command, args []string) error {
 		descPtr = &projectAddDescription
 	}
 
+	var priorityPtr *string
+	if projectAddPriority != "" {
+		priorityPtr = &projectAddPriority
+	}
+
 	projectCreate := &types.ProjectCreate{
 		Name:         projectAddName,
 		Description:  descPtr,
 		SystemID:     systemID,
 		ExternalID:   projectAddExternalID,
 		Status:       projectAddStatus,
+		Priority:     priorityPtr,
 		SyncStrategy: projectAddSyncStrategy,
 	}
 
@@ -282,6 +311,9 @@ func runProjectAdd(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  System: %d\n", project.SystemID)
 	fmt.Printf("  External ID: %s\n", project.ExternalID)
 	fmt.Printf("  Status: %s\n", project.Status)
+	if project.Priority != nil {
+		fmt.Printf("  Priority: %s\n", *project.Priority)
+	}
 	fmt.Printf("  Sync Strategy: %s\n", project.SyncStrategy)
 
 	return nil
@@ -337,6 +369,9 @@ func runProjectShow(cmd *cobra.Command, args []string) error {
 	fmt.Printf("System: %s (ID: %d)\n", system.Identifier, system.ID)
 	fmt.Printf("External ID: %s\n", project.ExternalID)
 	fmt.Printf("Status: %s\n", project.Status)
+	if project.Priority != nil {
+		fmt.Printf("Priority: %s\n", *project.Priority)
+	}
 	fmt.Printf("Sync Strategy: %s\n", project.SyncStrategy)
 	fmt.Printf("\nCreated: %s\n", project.CreatedAt.Format("2006-01-02 15:04:05"))
 	fmt.Printf("Updated: %s\n", project.UpdatedAt.Format("2006-01-02 15:04:05"))
@@ -354,6 +389,14 @@ func runProjectUpdate(cmd *cobra.Command, args []string) error {
 		}
 		if !validStrategies[projectUpdateSyncStrategy] {
 			return fmt.Errorf("invalid sync strategy %q: must be pull, push, or bidirectional", projectUpdateSyncStrategy)
+		}
+	}
+
+	// Validate priority if provided
+	if projectUpdatePriority != "" {
+		validPriorities := map[string]bool{"low": true, "medium": true, "high": true}
+		if !validPriorities[projectUpdatePriority] {
+			return fmt.Errorf("invalid priority %q: must be low, medium, or high", projectUpdatePriority)
 		}
 	}
 
@@ -382,6 +425,9 @@ func runProjectUpdate(cmd *cobra.Command, args []string) error {
 	if projectUpdateStatus != "" {
 		projectUpdate.Status = &projectUpdateStatus
 	}
+	if projectUpdatePriority != "" {
+		projectUpdate.Priority = &projectUpdatePriority
+	}
 	if projectUpdateSyncStrategy != "" {
 		projectUpdate.SyncStrategy = &projectUpdateSyncStrategy
 	}
@@ -393,6 +439,9 @@ func runProjectUpdate(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("Updated project %d: %s\n", project.ID, project.Name)
 	fmt.Printf("  Status: %s\n", project.Status)
+	if project.Priority != nil {
+		fmt.Printf("  Priority: %s\n", *project.Priority)
+	}
 	fmt.Printf("  Sync Strategy: %s\n", project.SyncStrategy)
 
 	return nil
@@ -529,7 +578,7 @@ func runProjectDiscover(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get existing projects for this system
-	existingProjects, err := client.ListProjects(context.Background(), &systemID)
+	existingProjects, err := client.ListProjects(context.Background(), &api.ProjectListOptions{SystemID: &systemID})
 	if err != nil {
 		return fmt.Errorf("failed to list existing projects: %w", err)
 	}

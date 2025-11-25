@@ -72,7 +72,8 @@ func (e *Engine) getProjectsToSync(ctx context.Context, options Options) ([]*typ
 	}
 
 	// Otherwise, list projects (optionally filtered by system)
-	return e.apiClient.ListProjects(ctx, options.SystemID)
+	opts := &api.ProjectListOptions{SystemID: options.SystemID}
+	return e.apiClient.ListProjects(ctx, opts)
 }
 
 // syncProject synchronizes a single project.

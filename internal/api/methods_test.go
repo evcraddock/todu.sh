@@ -244,8 +244,9 @@ func TestListProjects(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/projects/" {
-			t.Errorf("Expected path '/api/v1/projects/', got '%s'", r.URL.Path)
+		expectedPath := "/api/v1/projects/?"
+		if r.URL.Path+"?"+r.URL.RawQuery != expectedPath {
+			t.Errorf("Expected path '%s', got '%s'", expectedPath, r.URL.Path+"?"+r.URL.RawQuery)
 		}
 		if r.Method != http.MethodGet {
 			t.Errorf("Expected GET request, got '%s'", r.Method)
@@ -283,7 +284,7 @@ func TestListProjectsWithFilter(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		expectedPath := "/api/v1/projects/?system_id=1"
+		expectedPath := "/api/v1/projects/?system_id=1&"
 		if r.URL.Path+"?"+r.URL.RawQuery != expectedPath {
 			t.Errorf("Expected path '%s', got '%s'", expectedPath, r.URL.Path+"?"+r.URL.RawQuery)
 		}
@@ -293,7 +294,8 @@ func TestListProjectsWithFilter(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(server.URL)
-	result, err := client.ListProjects(context.Background(), &systemID)
+	opts := &ProjectListOptions{SystemID: &systemID}
+	result, err := client.ListProjects(context.Background(), opts)
 
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
