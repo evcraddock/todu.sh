@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/evcraddock/todu.sh/internal/api"
 	"github.com/evcraddock/todu.sh/internal/config"
 	"github.com/evcraddock/todu.sh/internal/sync"
 )
@@ -39,15 +40,40 @@ func (m *mockEngine) Sync(ctx context.Context, options sync.Options) (*sync.Resu
 	}, nil
 }
 
+// mockAPIClient is a mock API client for testing
+type mockAPIClient struct {
+	processCount  int
+	shouldFail    bool
+	tasksCreated  int
+	templatesSkipped int
+}
+
+func (m *mockAPIClient) ProcessDueTemplates(ctx context.Context) (*api.ProcessDueTemplatesResponse, error) {
+	m.processCount++
+
+	if m.shouldFail {
+		return nil, context.DeadlineExceeded
+	}
+
+	return &api.ProcessDueTemplatesResponse{
+		Processed:    m.processCount,
+		TasksCreated: m.tasksCreated,
+		Skipped:      m.templatesSkipped,
+		Failed:       0,
+		Details:      []api.TemplateProcessDetail{},
+	}, nil
+}
+
 func TestNew(t *testing.T) {
 	engine := &mockEngine{}
+	apiClient := &mockAPIClient{}
 	cfg := &config.Config{
 		Daemon: config.DaemonConfig{
 			Interval: "1s",
 		},
 	}
 
-	daemon := New(engine, cfg)
+	daemon := New(engine, apiClient, cfg)
 
 	if daemon == nil {
 		t.Fatal("New returned nil")
@@ -70,7 +96,8 @@ func TestDaemonStartStop(t *testing.T) {
 		},
 	}
 
-	daemon := New(engine, cfg)
+	apiClient := &mockAPIClient{}
+	daemon := New(engine, apiClient, cfg)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -112,7 +139,8 @@ func TestDaemonPeriodicSync(t *testing.T) {
 		},
 	}
 
-	daemon := New(engine, cfg)
+	apiClient := &mockAPIClient{}
+	daemon := New(engine, apiClient, cfg)
 	ctx, cancel := context.WithTimeout(context.Background(), 350*time.Millisecond)
 	defer cancel()
 
@@ -139,7 +167,8 @@ func TestDaemonExponentialBackoff(t *testing.T) {
 		},
 	}
 
-	daemon := New(engine, cfg)
+	apiClient := &mockAPIClient{}
+	daemon := New(engine, apiClient, cfg)
 	ctx, cancel := context.WithTimeout(context.Background(), 450*time.Millisecond)
 	defer cancel()
 
@@ -180,7 +209,8 @@ func TestDaemonStatusFile(t *testing.T) {
 		},
 	}
 
-	daemon := New(engine, cfg)
+	apiClient := &mockAPIClient{}
+	daemon := New(engine, apiClient, cfg)
 	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
 
@@ -262,7 +292,8 @@ func TestDaemonInvalidInterval(t *testing.T) {
 		},
 	}
 
-	daemon := New(engine, cfg)
+	apiClient := &mockAPIClient{}
+	daemon := New(engine, apiClient, cfg)
 	ctx := context.Background()
 
 	err := daemon.Start(ctx)
@@ -281,7 +312,8 @@ func TestDaemonContextCancellation(t *testing.T) {
 		},
 	}
 
-	daemon := New(engine, cfg)
+	apiClient := &mockAPIClient{}
+	daemon := New(engine, apiClient, cfg)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Start daemon in goroutine
@@ -314,7 +346,8 @@ func TestDaemonProjectFiltering(t *testing.T) {
 		},
 	}
 
-	daemon := New(engine, cfg)
+	apiClient := &mockAPIClient{}
+	daemon := New(engine, apiClient, cfg)
 	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
 

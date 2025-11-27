@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/evcraddock/todu.sh/internal/api"
 	"github.com/evcraddock/todu.sh/internal/config"
 	"github.com/evcraddock/todu.sh/internal/sync"
 )
@@ -31,22 +32,29 @@ type Status struct {
 	NextSyncTime  time.Time `json:"next_sync_time,omitempty"`
 }
 
+// APIClient defines the interface for API operations needed by the daemon
+type APIClient interface {
+	ProcessDueTemplates(ctx context.Context) (*api.ProcessDueTemplatesResponse, error)
+}
+
 // Daemon manages background synchronization
 type Daemon struct {
-	engine   SyncEngine
-	config   *config.Config
-	stopChan chan struct{}
-	doneChan chan struct{}
-	status   Status
+	engine    SyncEngine
+	apiClient APIClient
+	config    *config.Config
+	stopChan  chan struct{}
+	doneChan  chan struct{}
+	status    Status
 }
 
 // New creates a new Daemon instance
-func New(engine SyncEngine, config *config.Config) *Daemon {
+func New(engine SyncEngine, apiClient APIClient, config *config.Config) *Daemon {
 	return &Daemon{
-		engine:   engine,
-		config:   config,
-		stopChan: make(chan struct{}),
-		doneChan: make(chan struct{}),
+		engine:    engine,
+		apiClient: apiClient,
+		config:    config,
+		stopChan:  make(chan struct{}),
+		doneChan:  make(chan struct{}),
 		status: Status{
 			Running: false,
 		},
@@ -185,7 +193,47 @@ func (d *Daemon) runSync(ctx context.Context) error {
 
 	// Reset error count on success
 	d.status.ErrorCount = 0
+
+	// Process recurring task templates if enabled
+	if d.config.RecurringTasks.Enabled {
+		if err := d.processRecurringTasks(ctx); err != nil {
+			log.Printf("Failed to process recurring templates: %v", err)
+			// Don't fail the entire sync - just log the error
+		}
+	}
+
 	d.writeStatus()
+	return nil
+}
+
+// processRecurringTasks processes due recurring task templates
+func (d *Daemon) processRecurringTasks(ctx context.Context) error {
+	log.Println("Processing recurring task templates...")
+
+	result, err := d.apiClient.ProcessDueTemplates(ctx)
+	if err != nil {
+		return fmt.Errorf("API call failed: %w", err)
+	}
+
+	// Log summary
+	if result.TasksCreated > 0 || result.Skipped > 0 || result.Failed > 0 {
+		log.Printf("Recurring tasks: %d created, %d skipped, %d failed (processed %d templates)",
+			result.TasksCreated, result.Skipped, result.Failed, result.Processed)
+
+		// Log details for created tasks
+		for _, detail := range result.Details {
+			if detail.Action == "created" && detail.TaskID != nil {
+				log.Printf("  Created task #%d from template #%d", *detail.TaskID, detail.TemplateID)
+			} else if detail.Action == "skipped" {
+				log.Printf("  Skipped template #%d: %s", detail.TemplateID, detail.Reason)
+			} else if detail.Action == "failed" {
+				log.Printf("  Failed template #%d: %s", detail.TemplateID, detail.Error)
+			}
+		}
+	} else {
+		log.Println("No recurring tasks due")
+	}
+
 	return nil
 }
 

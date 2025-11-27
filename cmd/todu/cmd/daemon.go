@@ -138,7 +138,7 @@ func runDaemonStart(cmd *cobra.Command, args []string) error {
 	syncEngine := sync.NewEngine(apiClient, pluginRegistry)
 
 	// Create daemon
-	d := daemon.New(syncEngine, cfg)
+	d := daemon.New(syncEngine, apiClient, cfg)
 
 	// Show startup message
 	fmt.Printf("Daemon started, syncing every %s\n", cfg.Daemon.Interval)

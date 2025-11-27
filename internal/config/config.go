@@ -10,11 +10,12 @@ import (
 
 // Config represents the main configuration structure
 type Config struct {
-	APIURL   string         `mapstructure:"api_url"`
-	Author   string         `mapstructure:"author"`
-	Daemon   DaemonConfig   `mapstructure:"daemon"`
-	Output   OutputConfig   `mapstructure:"output"`
-	Defaults DefaultsConfig `mapstructure:"defaults"`
+	APIURL         string                 `mapstructure:"api_url"`
+	Author         string                 `mapstructure:"author"`
+	Daemon         DaemonConfig           `mapstructure:"daemon"`
+	Output         OutputConfig           `mapstructure:"output"`
+	Defaults       DefaultsConfig         `mapstructure:"defaults"`
+	RecurringTasks RecurringTasksConfig   `mapstructure:"recurring_tasks"`
 }
 
 // DefaultsConfig contains default values for commands
@@ -26,6 +27,11 @@ type DefaultsConfig struct {
 type DaemonConfig struct {
 	Interval string `mapstructure:"interval"`
 	Projects []int  `mapstructure:"projects"`
+}
+
+// RecurringTasksConfig contains recurring task processing settings
+type RecurringTasksConfig struct {
+	Enabled bool `mapstructure:"enabled"`
 }
 
 // OutputConfig contains output formatting settings
@@ -70,6 +76,7 @@ func loadFromFile(filePath string, enableEnv bool) (*Config, error) {
 	v.SetDefault("author", "")
 	v.SetDefault("daemon.interval", "5m")
 	v.SetDefault("daemon.projects", []int{})
+	v.SetDefault("recurring_tasks.enabled", true)
 	v.SetDefault("output.format", "text")
 	v.SetDefault("output.color", true)
 	v.SetDefault("defaults.project", "")
@@ -109,6 +116,7 @@ func loadFromPaths(paths []string, enableEnv bool) (*Config, error) {
 	v.SetDefault("author", "")
 	v.SetDefault("daemon.interval", "5m")
 	v.SetDefault("daemon.projects", []int{})
+	v.SetDefault("recurring_tasks.enabled", true)
 	v.SetDefault("output.format", "text")
 	v.SetDefault("output.color", true)
 	v.SetDefault("defaults.project", "")

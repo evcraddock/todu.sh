@@ -614,3 +614,37 @@ func (c *Client) DeleteTemplate(ctx context.Context, id int) error {
 
 	return parseResponse(resp, nil)
 }
+
+// TemplateProcessDetail represents details about a single template processing result
+type TemplateProcessDetail struct {
+	TemplateID int    `json:"template_id"`
+	Action     string `json:"action"`   // "created", "skipped", or "failed"
+	TaskID     *int   `json:"task_id"`  // only if action == "created"
+	Reason     string `json:"reason"`   // only if action == "skipped"
+	Error      string `json:"error"`    // only if action == "failed"
+}
+
+// ProcessDueTemplatesResponse represents the response from processing due templates
+type ProcessDueTemplatesResponse struct {
+	Processed    int                     `json:"processed"`
+	TasksCreated int                     `json:"tasks_created"`
+	Skipped      int                     `json:"skipped"`
+	Failed       int                     `json:"failed"`
+	Details      []TemplateProcessDetail `json:"details"`
+}
+
+// ProcessDueTemplates processes all recurring task templates that are due
+func (c *Client) ProcessDueTemplates(ctx context.Context) (*ProcessDueTemplatesResponse, error) {
+	path := "/api/v1/recurring-templates/process-due"
+	resp, err := c.doRequest(ctx, http.MethodPost, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result ProcessDueTemplatesResponse
+	if err := parseResponse(resp, &result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
