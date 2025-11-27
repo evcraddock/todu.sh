@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/evcraddock/todu.sh/internal/config"
@@ -35,7 +36,9 @@ const launchdPlistTemplate = `<?xml version="1.0" encoding="UTF-8"?>
 	<key>EnvironmentVariables</key>
 	<dict>
 		<key>HOME</key>
-		<string>{{.HomeDir}}</string>
+		<string>{{.HomeDir}}</string>{{range $key, $value := .EnvVars}}
+		<key>{{$key}}</key>
+		<string>{{$value}}</string>{{end}}
 	</dict>
 </dict>
 </plist>
@@ -86,14 +89,34 @@ func (s *darwinService) Install(cfg *config.Config) error {
 	if err := os.MkdirAll(filepath.Dir(logPath), 0755); err != nil {
 		return fmt.Errorf("failed to create log directory: %w", err)
 	}
+
+	// Collect all TODU_PLUGIN_* environment variables
+	envVars := make(map[string]string)
+	for _, env := range os.Environ() {
+		// Split into key=value
+		parts := strings.SplitN(env, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := parts[0]
+		value := parts[1]
+
+		// Only include TODU_PLUGIN_* environment variables
+		if strings.HasPrefix(key, "TODU_PLUGIN_") {
+			envVars[key] = value
+		}
+	}
+
 	data := struct {
 		ExecutablePath string
 		LogPath        string
 		HomeDir        string
+		EnvVars        map[string]string
 	}{
 		ExecutablePath: execPath,
 		LogPath:        logPath,
 		HomeDir:        homeDir,
+		EnvVars:        envVars,
 	}
 
 	// Parse and execute template

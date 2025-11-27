@@ -1,7 +1,7 @@
 package sync
 
 import (
-	"log"
+	"github.com/rs/zerolog"
 
 	"github.com/evcraddock/todu.sh/pkg/types"
 )
@@ -13,16 +13,24 @@ import (
 // Returns the task with the most recent UpdatedAt value.
 //
 // Logs a warning when a conflict is detected to inform the user.
-func ResolveConflict(toduTask, externalTask *types.Task) *types.Task {
+func ResolveConflict(logger zerolog.Logger, toduTask, externalTask *types.Task) *types.Task {
 	// Compare timestamps
 	if toduTask.UpdatedAt.After(externalTask.UpdatedAt) {
-		log.Printf("WARNING: Conflict detected for task %q (external_id: %s). Using Todu version (updated at %s) over external version (updated at %s)",
-			toduTask.Title, toduTask.ExternalID, toduTask.UpdatedAt, externalTask.UpdatedAt)
+		logger.Warn().
+			Str("task", toduTask.Title).
+			Str("external_id", toduTask.ExternalID).
+			Time("todu_updated", toduTask.UpdatedAt).
+			Time("external_updated", externalTask.UpdatedAt).
+			Msg("Conflict detected - using Todu version")
 		return toduTask
 	}
 
-	log.Printf("WARNING: Conflict detected for task %q (external_id: %s). Using external version (updated at %s) over Todu version (updated at %s)",
-		externalTask.Title, externalTask.ExternalID, externalTask.UpdatedAt, toduTask.UpdatedAt)
+	logger.Warn().
+		Str("task", externalTask.Title).
+		Str("external_id", externalTask.ExternalID).
+		Time("external_updated", externalTask.UpdatedAt).
+		Time("todu_updated", toduTask.UpdatedAt).
+		Msg("Conflict detected - using external version")
 	return externalTask
 }
 

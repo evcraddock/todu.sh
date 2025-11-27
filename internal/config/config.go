@@ -25,8 +25,12 @@ type DefaultsConfig struct {
 
 // DaemonConfig contains daemon-specific settings
 type DaemonConfig struct {
-	Interval string `mapstructure:"interval"`
-	Projects []int  `mapstructure:"projects"`
+	Interval       string `mapstructure:"interval"`
+	Projects       []int  `mapstructure:"projects"`
+	LogLevel       string `mapstructure:"log_level"`
+	LogMaxSizeMB   int    `mapstructure:"log_max_size_mb"`
+	LogMaxBackups  int    `mapstructure:"log_max_backups"`
+	LogMaxAgeDays  int    `mapstructure:"log_max_age_days"`
 }
 
 // RecurringTasksConfig contains recurring task processing settings
@@ -76,6 +80,10 @@ func loadFromFile(filePath string, enableEnv bool) (*Config, error) {
 	v.SetDefault("author", "")
 	v.SetDefault("daemon.interval", "5m")
 	v.SetDefault("daemon.projects", []int{})
+	v.SetDefault("daemon.log_level", "info")
+	v.SetDefault("daemon.log_max_size_mb", 10)
+	v.SetDefault("daemon.log_max_backups", 5)
+	v.SetDefault("daemon.log_max_age_days", 7)
 	v.SetDefault("recurring_tasks.enabled", true)
 	v.SetDefault("output.format", "text")
 	v.SetDefault("output.color", true)
@@ -116,6 +124,10 @@ func loadFromPaths(paths []string, enableEnv bool) (*Config, error) {
 	v.SetDefault("author", "")
 	v.SetDefault("daemon.interval", "5m")
 	v.SetDefault("daemon.projects", []int{})
+	v.SetDefault("daemon.log_level", "info")
+	v.SetDefault("daemon.log_max_size_mb", 10)
+	v.SetDefault("daemon.log_max_backups", 5)
+	v.SetDefault("daemon.log_max_age_days", 7)
 	v.SetDefault("recurring_tasks.enabled", true)
 	v.SetDefault("output.format", "text")
 	v.SetDefault("output.color", true)

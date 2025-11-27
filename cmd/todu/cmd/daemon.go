@@ -140,16 +140,6 @@ func runDaemonStart(cmd *cobra.Command, args []string) error {
 	// Create daemon
 	d := daemon.New(syncEngine, apiClient, cfg)
 
-	// Show startup message
-	fmt.Printf("Daemon started, syncing every %s\n", cfg.Daemon.Interval)
-	if len(cfg.Daemon.Projects) > 0 {
-		fmt.Printf("Syncing projects: %v\n", cfg.Daemon.Projects)
-	} else {
-		fmt.Println("Syncing all projects")
-	}
-	fmt.Println("Press Ctrl+C to stop")
-	fmt.Println()
-
 	// Start daemon (blocks until stopped)
 	ctx := context.Background()
 	if err := d.Start(ctx); err != nil {
@@ -279,7 +269,7 @@ func runDaemonStatus(cmd *cobra.Command, args []string) error {
 			time.Until(status.NextSyncTime).Round(time.Second))
 	}
 
-	if status.LastSyncError != "" {
+	if status.LastSyncError != "" && status.ErrorCount > 0 {
 		fmt.Println()
 		fmt.Printf("Last error: %s\n", status.LastSyncError)
 		fmt.Printf("Error count: %d\n", status.ErrorCount)

@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 	"time"
+
+	"github.com/rs/zerolog"
 
 	"github.com/evcraddock/todu.sh/internal/api"
 	"github.com/evcraddock/todu.sh/internal/config"
@@ -42,6 +43,7 @@ type Daemon struct {
 	engine    SyncEngine
 	apiClient APIClient
 	config    *config.Config
+	logger    zerolog.Logger
 	stopChan  chan struct{}
 	doneChan  chan struct{}
 	status    Status
@@ -49,10 +51,24 @@ type Daemon struct {
 
 // New creates a new Daemon instance
 func New(engine SyncEngine, apiClient APIClient, config *config.Config) *Daemon {
+	// Setup logger with rotation
+	logger, err := setupLogger(config)
+	if err != nil {
+		// Fallback to a basic logger if setup fails
+		logger = zerolog.New(os.Stderr).With().Timestamp().Logger()
+		logger.Error().Err(err).Msg("Failed to setup logger, using stderr")
+	}
+
+	// If the engine supports WithLogger, set the logger on it
+	if e, ok := engine.(interface{ WithLogger(zerolog.Logger) *sync.Engine }); ok {
+		e.WithLogger(logger)
+	}
+
 	return &Daemon{
 		engine:    engine,
 		apiClient: apiClient,
 		config:    config,
+		logger:    logger,
 		stopChan:  make(chan struct{}),
 		doneChan:  make(chan struct{}),
 		status: Status{
@@ -67,7 +83,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 	d.status.PID = os.Getpid()
 	d.writeStatus()
 
-	log.Println("Daemon starting...")
+	d.logger.Info().Msg("Daemon starting...")
 
 	// Parse interval
 	interval, err := time.ParseDuration(d.config.Daemon.Interval)
@@ -75,7 +91,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 		return fmt.Errorf("invalid daemon interval: %w", err)
 	}
 
-	log.Printf("Sync interval: %s", interval)
+	d.logger.Info().Dur("interval", interval).Msg("Sync interval configured")
 
 	// Setup signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
@@ -96,17 +112,17 @@ func (d *Daemon) Start(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("Context cancelled, stopping daemon...")
+			d.logger.Info().Msg("Context cancelled, stopping daemon...")
 			d.stop()
 			return ctx.Err()
 
 		case <-sigChan:
-			log.Println("Received shutdown signal, stopping daemon...")
+			d.logger.Info().Msg("Received shutdown signal, stopping daemon...")
 			d.stop()
 			return nil
 
 		case <-d.stopChan:
-			log.Println("Stop signal received, shutting down...")
+			d.logger.Info().Msg("Stop signal received, shutting down...")
 			d.stop()
 			return nil
 
@@ -114,7 +130,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 			// Run sync
 			if err := d.runSync(ctx); err != nil {
 				failureCount++
-				log.Printf("Sync failed (failure count: %d): %v", failureCount, err)
+				d.logger.Error().Err(err).Int("failure_count", failureCount).Msg("Sync failed")
 
 				// Calculate backoff duration using exponential backoff
 				backoffMultiplier := math.Pow(2, float64(failureCount-1))
@@ -123,7 +139,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 					backoffDuration = maxBackoff
 				}
 
-				log.Printf("Next sync in %s (with backoff)", backoffDuration)
+				d.logger.Info().Dur("next_sync_in", backoffDuration).Msg("Next sync scheduled with backoff")
 
 				// Reset ticker with backoff
 				ticker.Reset(backoffDuration)
@@ -131,7 +147,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 			} else {
 				// Success - reset failure count and backoff
 				if failureCount > 0 {
-					log.Printf("Sync succeeded, resetting backoff")
+					d.logger.Info().Msg("Sync succeeded, resetting backoff")
 					failureCount = 0
 					ticker.Reset(baseInterval)
 				}
@@ -145,7 +161,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 
 // Stop gracefully stops the daemon
 func (d *Daemon) Stop() error {
-	log.Println("Stopping daemon...")
+	d.logger.Info().Msg("Stopping daemon...")
 	close(d.stopChan)
 	<-d.doneChan
 	return nil
@@ -157,12 +173,12 @@ func (d *Daemon) stop() {
 	d.status.PID = 0
 	d.writeStatus()
 	close(d.doneChan)
-	log.Println("Daemon stopped")
+	d.logger.Info().Msg("Daemon stopped")
 }
 
 // runSync executes a single sync operation
 func (d *Daemon) runSync(ctx context.Context) error {
-	log.Println("Starting sync...")
+	d.logger.Info().Msg("Starting sync...")
 	d.status.LastSyncTime = time.Now()
 	d.status.LastSyncError = ""
 
@@ -180,11 +196,27 @@ func (d *Daemon) runSync(ctx context.Context) error {
 		return err
 	}
 
-	// Log results
-	log.Printf("Sync completed: %d created, %d updated, %d skipped, %d errors",
-		result.TotalCreated, result.TotalUpdated, result.TotalSkipped, result.TotalErrors)
+	// Log results summary
+	d.logger.Info().
+		Int("created", result.TotalCreated).
+		Int("updated", result.TotalUpdated).
+		Int("skipped", result.TotalSkipped).
+		Int("errors", result.TotalErrors).
+		Msg("Sync completed")
 
 	if result.TotalErrors > 0 {
+		// Log detailed errors for each project (always log errors regardless of level)
+		for _, pr := range result.ProjectResults {
+			if len(pr.Errors) > 0 {
+				for _, err := range pr.Errors {
+					d.logger.Error().
+						Str("project", pr.ProjectName).
+						Err(err).
+						Msg("Project sync error")
+				}
+			}
+		}
+
 		d.status.LastSyncError = fmt.Sprintf("%d errors occurred during sync", result.TotalErrors)
 		d.status.ErrorCount++
 		d.writeStatus()
@@ -197,7 +229,7 @@ func (d *Daemon) runSync(ctx context.Context) error {
 	// Process recurring task templates if enabled
 	if d.config.RecurringTasks.Enabled {
 		if err := d.processRecurringTasks(ctx); err != nil {
-			log.Printf("Failed to process recurring templates: %v", err)
+			d.logger.Warn().Err(err).Msg("Failed to process recurring templates")
 			// Don't fail the entire sync - just log the error
 		}
 	}
@@ -208,7 +240,7 @@ func (d *Daemon) runSync(ctx context.Context) error {
 
 // processRecurringTasks processes due recurring task templates
 func (d *Daemon) processRecurringTasks(ctx context.Context) error {
-	log.Println("Processing recurring task templates...")
+	d.logger.Debug().Msg("Processing recurring task templates...")
 
 	result, err := d.apiClient.ProcessDueTemplates(ctx)
 	if err != nil {
@@ -217,21 +249,34 @@ func (d *Daemon) processRecurringTasks(ctx context.Context) error {
 
 	// Log summary
 	if result.TasksCreated > 0 || result.Skipped > 0 || result.Failed > 0 {
-		log.Printf("Recurring tasks: %d created, %d skipped, %d failed (processed %d templates)",
-			result.TasksCreated, result.Skipped, result.Failed, result.Processed)
+		d.logger.Info().
+			Int("created", result.TasksCreated).
+			Int("skipped", result.Skipped).
+			Int("failed", result.Failed).
+			Int("processed", result.Processed).
+			Msg("Recurring tasks processed")
 
-		// Log details for created tasks
+		// Log details at DEBUG level
 		for _, detail := range result.Details {
 			if detail.Action == "created" && detail.TaskID != nil {
-				log.Printf("  Created task #%d from template #%d", *detail.TaskID, detail.TemplateID)
+				d.logger.Debug().
+					Int("task_id", *detail.TaskID).
+					Int("template_id", detail.TemplateID).
+					Msg("Created task from template")
 			} else if detail.Action == "skipped" {
-				log.Printf("  Skipped template #%d: %s", detail.TemplateID, detail.Reason)
+				d.logger.Debug().
+					Int("template_id", detail.TemplateID).
+					Str("reason", detail.Reason).
+					Msg("Skipped template")
 			} else if detail.Action == "failed" {
-				log.Printf("  Failed template #%d: %s", detail.TemplateID, detail.Error)
+				d.logger.Error().
+					Int("template_id", detail.TemplateID).
+					Str("error", detail.Error).
+					Msg("Failed to process template")
 			}
 		}
 	} else {
-		log.Println("No recurring tasks due")
+		d.logger.Debug().Msg("No recurring tasks due")
 	}
 
 	return nil
@@ -241,7 +286,7 @@ func (d *Daemon) processRecurringTasks(ctx context.Context) error {
 func (d *Daemon) writeStatus() {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		log.Printf("Warning: failed to get home directory: %v", err)
+		d.logger.Warn().Err(err).Msg("Failed to get home directory for status file")
 		return
 	}
 
@@ -249,20 +294,20 @@ func (d *Daemon) writeStatus() {
 
 	// Ensure directory exists
 	if err := os.MkdirAll(filepath.Dir(statusPath), 0755); err != nil {
-		log.Printf("Warning: failed to create status directory: %v", err)
+		d.logger.Warn().Err(err).Msg("Failed to create status directory")
 		return
 	}
 
 	// Marshal status to JSON
 	data, err := json.MarshalIndent(d.status, "", "  ")
 	if err != nil {
-		log.Printf("Warning: failed to marshal status: %v", err)
+		d.logger.Warn().Err(err).Msg("Failed to marshal status")
 		return
 	}
 
 	// Write to file
 	if err := os.WriteFile(statusPath, data, 0644); err != nil {
-		log.Printf("Warning: failed to write status file: %v", err)
+		d.logger.Warn().Err(err).Msg("Failed to write status file")
 	}
 }
 

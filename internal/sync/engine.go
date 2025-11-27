@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"io"
 	"time"
+
+	"github.com/rs/zerolog"
 
 	"github.com/evcraddock/todu.sh/internal/api"
 	"github.com/evcraddock/todu.sh/internal/registry"
@@ -17,14 +19,23 @@ import (
 type Engine struct {
 	apiClient *api.Client
 	registry  *registry.Registry
+	logger    zerolog.Logger
 }
 
 // NewEngine creates a new sync engine with the given API client and plugin registry.
 func NewEngine(apiClient *api.Client, registry *registry.Registry) *Engine {
+	// Default to a disabled logger (no output)
 	return &Engine{
 		apiClient: apiClient,
 		registry:  registry,
+		logger:    zerolog.New(io.Discard),
 	}
+}
+
+// WithLogger sets a logger for the sync engine
+func (e *Engine) WithLogger(logger zerolog.Logger) *Engine {
+	e.logger = logger
+	return e
 }
 
 // Sync performs synchronization based on the provided options.
@@ -40,11 +51,11 @@ func (e *Engine) Sync(ctx context.Context, options Options) (*Result, error) {
 	}
 
 	if len(projects) == 0 {
-		log.Println("No projects to sync")
+		e.logger.Debug().Msg("No projects to sync")
 		return result, nil
 	}
 
-	log.Printf("Syncing %d project(s)...", len(projects))
+	e.logger.Debug().Int("count", len(projects)).Msg("Syncing projects...")
 
 	// Sync each project
 	for _, project := range projects {
@@ -84,11 +95,11 @@ func (e *Engine) syncProject(ctx context.Context, project *types.Project, option
 		Errors:      []error{},
 	}
 
-	log.Printf("Syncing project %q (ID: %d)...", project.Name, project.ID)
+	e.logger.Debug().Str("project", project.Name).Int("id", project.ID).Msg("Syncing project")
 
 	// Determine sync strategy
 	strategy := e.determineStrategy(project, options)
-	log.Printf("  Using strategy: %s", strategy)
+	e.logger.Debug().Str("project", project.Name).Str("strategy", string(strategy)).Msg("Using strategy")
 
 	// Get system for project
 	system, err := e.apiClient.GetSystem(ctx, project.SystemID)
@@ -129,7 +140,12 @@ func (e *Engine) syncProject(ctx context.Context, project *types.Project, option
 	}
 
 	if len(pr.Errors) == 0 {
-		log.Printf("  ✓ Project synced: %d created, %d updated, %d skipped", pr.Created, pr.Updated, pr.Skipped)
+		e.logger.Debug().
+			Str("project", project.Name).
+			Int("created", pr.Created).
+			Int("updated", pr.Updated).
+			Int("skipped", pr.Skipped).
+			Msg("Project synced")
 		// Update last_synced_at timestamp on successful sync
 		if !options.DryRun {
 			now := time.Now()
@@ -138,13 +154,16 @@ func (e *Engine) syncProject(ctx context.Context, project *types.Project, option
 			}
 			_, err := e.apiClient.UpdateProject(ctx, project.ID, projectUpdate)
 			if err != nil {
-				log.Printf("  WARNING: failed to update last_synced_at: %v", err)
+				e.logger.Warn().Err(err).Str("project", project.Name).Msg("Failed to update last_synced_at")
 			}
 		}
 	} else {
-		log.Printf("  ✗ Project sync completed with %d error(s)", len(pr.Errors))
-		for i, err := range pr.Errors {
-			log.Printf("    Error %d: %v", i+1, err)
+		e.logger.Debug().
+			Str("project", project.Name).
+			Int("error_count", len(pr.Errors)).
+			Msg("Project sync completed with errors")
+		for _, err := range pr.Errors {
+			e.logger.Debug().Str("project", project.Name).Err(err).Msg("Project sync error detail")
 		}
 	}
 
@@ -189,7 +208,7 @@ func (e *Engine) syncPull(ctx context.Context, project *types.Project, p plugin.
 	// Process each external task
 	for _, externalTask := range externalTasks {
 		if externalTask.ExternalID == "" {
-			log.Printf("  WARNING: External task has no external_id, skipping")
+			e.logger.Debug().Msg("External task has no external_id, skipping")
 			pr.Skipped++
 			continue
 		}
@@ -219,7 +238,7 @@ func (e *Engine) syncPull(ctx context.Context, project *types.Project, p plugin.
 				// Sync comments for newly created task
 				e.syncPullComments(ctx, project, p, createdTask, dryRun, pr)
 			}
-			log.Printf("  → Created task: %s", externalTask.Title)
+			e.logger.Debug().Str("task", externalTask.Title).Msg("Created task")
 			pr.Created++
 		} else if NeedsUpdate(externalTask, toduTask) {
 			// External task is newer, update Todu task
@@ -239,7 +258,7 @@ func (e *Engine) syncPull(ctx context.Context, project *types.Project, p plugin.
 					continue
 				}
 			}
-			log.Printf("  ↻ Updated task: %s", externalTask.Title)
+			e.logger.Debug().Str("task", externalTask.Title).Msg("Updated task")
 			pr.Updated++
 		} else {
 			// Todu task is up to date
@@ -301,9 +320,9 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 					pr.Errors = append(pr.Errors, fmt.Errorf("failed to update task with external_id: %w", err))
 					continue
 				}
-				log.Printf("  → Created external task: %s (external_id: %s)", toduTask.Title, createdTask.ExternalID)
+				e.logger.Debug().Str("task", toduTask.Title).Str("external_id", createdTask.ExternalID).Msg("Created external task")
 			} else {
-				log.Printf("  → Would create external task: %s", toduTask.Title)
+				e.logger.Debug().Str("task", toduTask.Title).Msg("Would create external task (dry run)")
 			}
 			pr.Created++
 			continue
@@ -328,14 +347,14 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 						}
 						_, closeErr := p.UpdateTask(ctx, &project.ExternalID, toduTask.ExternalID, taskUpdate)
 						if closeErr == nil {
-							log.Printf("  ← Closed task externally: %s", toduTask.Title)
+							e.logger.Debug().Str("task", toduTask.Title).Msg("Closed task externally")
 							pr.Updated++
 							continue
 						}
 						// If close failed, task is truly gone
 					}
 				}
-				log.Printf("  → Task %q no longer exists externally, skipping", toduTask.Title)
+				e.logger.Debug().Str("task", toduTask.Title).Msg("Task no longer exists externally, skipping")
 				pr.Skipped++
 				continue
 			}
@@ -366,7 +385,7 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 					continue
 				}
 			}
-			log.Printf("  ← Pushed task: %s", toduTask.Title)
+			e.logger.Debug().Str("task", toduTask.Title).Msg("Pushed task")
 			pr.Updated++
 		} else {
 			// External task is up to date
@@ -416,7 +435,7 @@ func (e *Engine) syncPullComments(ctx context.Context, project *types.Project, p
 	// Process each external comment
 	for _, externalComment := range externalComments {
 		if externalComment.ExternalID == "" {
-			log.Printf("    WARNING: External comment has no external_id, skipping")
+			e.logger.Debug().Msg("External comment has no external_id, skipping")
 			continue
 		}
 
@@ -437,7 +456,7 @@ func (e *Engine) syncPullComments(ctx context.Context, project *types.Project, p
 					continue
 				}
 			}
-			log.Printf("    → Synced comment from %s", externalComment.Author)
+			e.logger.Debug().Str("author", externalComment.Author).Msg("Synced comment")
 		}
 		// Note: Comments are typically immutable after creation, so we don't update them
 	}
@@ -511,7 +530,7 @@ func (e *Engine) syncPushComments(ctx context.Context, project *types.Project, p
 				}
 			}
 		}
-		log.Printf("    ← Pushed comment from %s", toduComment.Author)
+		e.logger.Debug().Str("author", toduComment.Author).Msg("Pushed comment")
 	}
 }
 
