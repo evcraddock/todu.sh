@@ -197,7 +197,7 @@ func (d *Daemon) writeStatus() {
 		return
 	}
 
-	statusPath := filepath.Join(homeDir, ".todu", "daemon.status")
+	statusPath := filepath.Join(homeDir, ".config", "todu", "daemon.status")
 
 	// Ensure directory exists
 	if err := os.MkdirAll(filepath.Dir(statusPath), 0755); err != nil {
@@ -230,7 +230,7 @@ func ReadStatus() (*Status, error) {
 		return nil, fmt.Errorf("failed to get home directory: %w", err)
 	}
 
-	statusPath := filepath.Join(homeDir, ".todu", "daemon.status")
+	statusPath := filepath.Join(homeDir, ".config", "todu", "daemon.status")
 
 	data, err := os.ReadFile(statusPath)
 	if err != nil {

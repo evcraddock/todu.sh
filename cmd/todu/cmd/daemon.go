@@ -337,7 +337,7 @@ func runDaemonLogs(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get home directory: %w", err)
 	}
 
-	logPath := filepath.Join(homeDir, ".todu", "daemon.log")
+	logPath := filepath.Join(homeDir, ".config", "todu", "daemon.log")
 
 	// Check if log file exists
 	if _, err := os.Stat(logPath); os.IsNotExist(err) {

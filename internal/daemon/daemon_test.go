@@ -188,7 +188,7 @@ func TestDaemonStatusFile(t *testing.T) {
 	daemon.Start(ctx)
 
 	// Check status file was created
-	statusPath := filepath.Join(tempHome, ".todu", "daemon.status")
+	statusPath := filepath.Join(tempHome, ".config", "todu", "daemon.status")
 	if _, err := os.Stat(statusPath); os.IsNotExist(err) {
 		t.Error("Status file was not created")
 	}
@@ -227,7 +227,7 @@ func TestReadStatus(t *testing.T) {
 	}
 
 	// Create status file
-	statusPath := filepath.Join(tempHome, ".todu", "daemon.status")
+	statusPath := filepath.Join(tempHome, ".config", "todu", "daemon.status")
 	os.MkdirAll(filepath.Dir(statusPath), 0755)
 
 	testStatus := Status{

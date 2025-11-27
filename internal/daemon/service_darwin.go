@@ -80,7 +80,12 @@ func (s *darwinService) Install(cfg *config.Config) error {
 	}
 
 	// Prepare template data
-	logPath := filepath.Join(homeDir, ".todu", "daemon.log")
+	logPath := filepath.Join(homeDir, ".config", "todu", "daemon.log")
+
+	// Ensure log directory exists
+	if err := os.MkdirAll(filepath.Dir(logPath), 0755); err != nil {
+		return fmt.Errorf("failed to create log directory: %w", err)
+	}
 	data := struct {
 		ExecutablePath string
 		LogPath        string
