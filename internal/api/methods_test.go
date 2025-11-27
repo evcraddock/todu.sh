@@ -284,7 +284,7 @@ func TestListProjectsWithFilter(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		expectedPath := "/api/v1/projects/?system_id=1&"
+		expectedPath := "/api/v1/projects/?system_id=1"
 		if r.URL.Path+"?"+r.URL.RawQuery != expectedPath {
 			t.Errorf("Expected path '%s', got '%s'", expectedPath, r.URL.Path+"?"+r.URL.RawQuery)
 		}
@@ -445,13 +445,13 @@ func TestListTasks(t *testing.T) {
 	tasksResp := TasksResponse{
 		Items: []*types.Task{
 			{
-				ID:          1,
-				ExternalID:  "123",
-				Title:       "Test Task",
-				ProjectID:   1,
-				Status:      "open",
-				CreatedAt:   now,
-				UpdatedAt:   now,
+				ID:         1,
+				ExternalID: "123",
+				Title:      "Test Task",
+				ProjectID:  1,
+				Status:     "open",
+				CreatedAt:  now,
+				UpdatedAt:  now,
 			},
 		},
 		Total: 1,
@@ -482,13 +482,13 @@ func TestListTasksWithFilter(t *testing.T) {
 	tasksResp := TasksResponse{
 		Items: []*types.Task{
 			{
-				ID:          1,
-				ExternalID:  "123",
-				Title:       "Test Task",
-				ProjectID:   1,
-				Status:      "open",
-				CreatedAt:   now,
-				UpdatedAt:   now,
+				ID:         1,
+				ExternalID: "123",
+				Title:      "Test Task",
+				ProjectID:  1,
+				Status:     "open",
+				CreatedAt:  now,
+				UpdatedAt:  now,
 			},
 		},
 		Total: 1,
@@ -523,13 +523,13 @@ func TestListTasksWithFilter(t *testing.T) {
 func TestGetTask(t *testing.T) {
 	now := time.Now()
 	task := &types.Task{
-		ID:          1,
-		ExternalID:  "123",
-		Title:       "Test Task",
-		ProjectID:   1,
-		Status:      "open",
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:         1,
+		ExternalID: "123",
+		Title:      "Test Task",
+		ProjectID:  1,
+		Status:     "open",
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -552,19 +552,19 @@ func TestGetTask(t *testing.T) {
 func TestCreateTask(t *testing.T) {
 	now := time.Now()
 	create := &types.TaskCreate{
-		ExternalID:  "123",
-		Title:       "Test Task",
-		ProjectID:   1,
-		Status:      "open",
+		ExternalID: "123",
+		Title:      "Test Task",
+		ProjectID:  1,
+		Status:     "open",
 	}
 	created := &types.Task{
-		ID:          1,
-		ExternalID:  "123",
-		Title:       "Test Task",
-		ProjectID:   1,
-		Status:      "open",
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:         1,
+		ExternalID: "123",
+		Title:      "Test Task",
+		ProjectID:  1,
+		Status:     "open",
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -594,13 +594,13 @@ func TestUpdateTask(t *testing.T) {
 		Title: &newTitle,
 	}
 	updated := &types.Task{
-		ID:          1,
-		ExternalID:  "123",
-		Title:       "Updated Task",
-		ProjectID:   1,
-		Status:      "open",
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:         1,
+		ExternalID: "123",
+		Title:      "Updated Task",
+		ProjectID:  1,
+		Status:     "open",
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -800,5 +800,309 @@ func TestInvalidJSON(t *testing.T) {
 
 	if err == nil {
 		t.Fatal("Expected error for invalid JSON")
+	}
+}
+
+// Recurring Task Template Tests
+
+func TestListTemplates(t *testing.T) {
+	now := time.Now()
+	startDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	templates := []*types.RecurringTaskTemplate{
+		{
+			ID:             1,
+			ProjectID:      1,
+			Title:          "Daily standup",
+			RecurrenceRule: "FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR",
+			StartDate:      startDate,
+			Timezone:       "UTC",
+			TemplateType:   "task",
+			IsActive:       true,
+			CreatedAt:      now,
+			UpdatedAt:      now,
+		},
+		{
+			ID:             2,
+			ProjectID:      1,
+			Title:          "Weekly review",
+			RecurrenceRule: "FREQ=WEEKLY;BYDAY=FR",
+			StartDate:      startDate,
+			Timezone:       "America/New_York",
+			TemplateType:   "habit",
+			IsActive:       true,
+			CreatedAt:      now,
+			UpdatedAt:      now,
+		},
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/api/v1/recurring-templates/") {
+			t.Errorf("Expected path to start with '/api/v1/recurring-templates/', got '%s'", r.URL.Path)
+		}
+		if r.Method != http.MethodGet {
+			t.Errorf("Expected GET request, got '%s'", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(templates)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL)
+	result, err := client.ListTemplates(context.Background(), nil)
+
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if len(result) != 2 {
+		t.Errorf("Expected 2 templates, got %d", len(result))
+	}
+	if result[0].Title != "Daily standup" {
+		t.Errorf("Expected first template title to be 'Daily standup', got '%s'", result[0].Title)
+	}
+}
+
+func TestListTemplatesWithFilters(t *testing.T) {
+	now := time.Now()
+	startDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	projectID := 1
+	active := true
+	templates := []*types.RecurringTaskTemplate{
+		{
+			ID:             1,
+			ProjectID:      1,
+			Title:          "Daily standup",
+			RecurrenceRule: "FREQ=DAILY",
+			StartDate:      startDate,
+			Timezone:       "UTC",
+			TemplateType:   "task",
+			IsActive:       true,
+			CreatedAt:      now,
+			UpdatedAt:      now,
+		},
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.URL.RawQuery, "project_id=1") {
+			t.Errorf("Expected query to contain 'project_id=1', got '%s'", r.URL.RawQuery)
+		}
+		if !strings.Contains(r.URL.RawQuery, "is_active=true") {
+			t.Errorf("Expected query to contain 'is_active=true', got '%s'", r.URL.RawQuery)
+		}
+		if !strings.Contains(r.URL.RawQuery, "template_type=task") {
+			t.Errorf("Expected query to contain 'template_type=task', got '%s'", r.URL.RawQuery)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(templates)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL)
+	opts := &TemplateListOptions{
+		ProjectID:    &projectID,
+		Active:       &active,
+		TemplateType: "task",
+	}
+	result, err := client.ListTemplates(context.Background(), opts)
+
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if len(result) != 1 {
+		t.Errorf("Expected 1 template, got %d", len(result))
+	}
+}
+
+func TestGetTemplate(t *testing.T) {
+	now := time.Now()
+	startDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	template := &types.RecurringTaskTemplate{
+		ID:             1,
+		ProjectID:      1,
+		Title:          "Daily standup",
+		RecurrenceRule: "FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR",
+		StartDate:      startDate,
+		Timezone:       "UTC",
+		TemplateType:   "task",
+		IsActive:       true,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/recurring-templates/1" {
+			t.Errorf("Expected path '/api/v1/recurring-templates/1', got '%s'", r.URL.Path)
+		}
+		if r.Method != http.MethodGet {
+			t.Errorf("Expected GET request, got '%s'", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(template)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL)
+	result, err := client.GetTemplate(context.Background(), 1)
+
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if result.ID != 1 {
+		t.Errorf("Expected template ID 1, got %d", result.ID)
+	}
+	if result.Title != "Daily standup" {
+		t.Errorf("Expected title 'Daily standup', got '%s'", result.Title)
+	}
+}
+
+func TestGetTemplate404(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("template not found"))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL)
+	_, err := client.GetTemplate(context.Background(), 999)
+
+	if err == nil {
+		t.Fatal("Expected error for 404 response")
+	}
+}
+
+func TestCreateTemplate(t *testing.T) {
+	now := time.Now()
+	startDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	create := &types.RecurringTaskTemplateCreate{
+		ProjectID:      1,
+		Title:          "Daily standup",
+		RecurrenceRule: "FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR",
+		StartDate:      "2024-01-01",
+		Timezone:       "UTC",
+		TemplateType:   "task",
+		IsActive:       true,
+	}
+	created := &types.RecurringTaskTemplate{
+		ID:             1,
+		ProjectID:      1,
+		Title:          "Daily standup",
+		RecurrenceRule: "FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR",
+		StartDate:      startDate,
+		Timezone:       "UTC",
+		TemplateType:   "task",
+		IsActive:       true,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/recurring-templates/" {
+			t.Errorf("Expected path '/api/v1/recurring-templates/', got '%s'", r.URL.Path)
+		}
+		if r.Method != http.MethodPost {
+			t.Errorf("Expected POST request, got '%s'", r.Method)
+		}
+
+		var received types.RecurringTaskTemplateCreate
+		if err := json.NewDecoder(r.Body).Decode(&received); err != nil {
+			t.Fatalf("Failed to decode request body: %v", err)
+		}
+		if received.Title != "Daily standup" {
+			t.Errorf("Expected title 'Daily standup', got '%s'", received.Title)
+		}
+		if received.RecurrenceRule != "FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR" {
+			t.Errorf("Expected recurrence rule 'FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR', got '%s'", received.RecurrenceRule)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(created)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL)
+	result, err := client.CreateTemplate(context.Background(), create)
+
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if result.ID != 1 {
+		t.Errorf("Expected ID 1, got %d", result.ID)
+	}
+	if result.Title != "Daily standup" {
+		t.Errorf("Expected title 'Daily standup', got '%s'", result.Title)
+	}
+}
+
+func TestUpdateTemplate(t *testing.T) {
+	now := time.Now()
+	startDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	newTitle := "Updated standup"
+	newRecurrence := "FREQ=DAILY"
+	update := &types.RecurringTaskTemplateUpdate{
+		Title:          &newTitle,
+		RecurrenceRule: &newRecurrence,
+	}
+	updated := &types.RecurringTaskTemplate{
+		ID:             1,
+		ProjectID:      1,
+		Title:          "Updated standup",
+		RecurrenceRule: "FREQ=DAILY",
+		StartDate:      startDate,
+		Timezone:       "UTC",
+		TemplateType:   "task",
+		IsActive:       true,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/recurring-templates/1" {
+			t.Errorf("Expected path '/api/v1/recurring-templates/1', got '%s'", r.URL.Path)
+		}
+		if r.Method != http.MethodPatch {
+			t.Errorf("Expected PATCH request, got '%s'", r.Method)
+		}
+
+		var received types.RecurringTaskTemplateUpdate
+		if err := json.NewDecoder(r.Body).Decode(&received); err != nil {
+			t.Fatalf("Failed to decode request body: %v", err)
+		}
+		if received.Title == nil || *received.Title != "Updated standup" {
+			t.Errorf("Expected title 'Updated standup'")
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(updated)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL)
+	result, err := client.UpdateTemplate(context.Background(), 1, update)
+
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if result.Title != "Updated standup" {
+		t.Errorf("Expected title 'Updated standup', got '%s'", result.Title)
+	}
+}
+
+func TestDeleteTemplate(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/recurring-templates/1" {
+			t.Errorf("Expected path '/api/v1/recurring-templates/1', got '%s'", r.URL.Path)
+		}
+		if r.Method != http.MethodDelete {
+			t.Errorf("Expected DELETE request, got '%s'", r.Method)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL)
+	err := client.DeleteTemplate(context.Background(), 1)
+
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
 	}
 }

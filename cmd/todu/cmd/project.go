@@ -86,23 +86,23 @@ projects and shows which ones are already registered in todu.`,
 }
 
 var (
-	projectListSystem       string
-	projectListPriority     []string
-	projectAddSystem        string
-	projectAddExternalID    string
-	projectAddName          string
-	projectAddDescription   string
-	projectAddStatus        string
-	projectAddPriority      string
-	projectAddSyncStrategy  string
-	projectUpdateName        string
-	projectUpdateDescription string
-	projectUpdateStatus      string
-	projectUpdatePriority    string
+	projectListSystem         string
+	projectListPriority       []string
+	projectAddSystem          string
+	projectAddExternalID      string
+	projectAddName            string
+	projectAddDescription     string
+	projectAddStatus          string
+	projectAddPriority        string
+	projectAddSyncStrategy    string
+	projectUpdateName         string
+	projectUpdateDescription  string
+	projectUpdateStatus       string
+	projectUpdatePriority     string
 	projectUpdateSyncStrategy string
-	projectRemoveForce       bool
-	projectRemoveCascade     bool
-	projectDiscoverSystem    string
+	projectRemoveForce        bool
+	projectRemoveCascade      bool
+	projectDiscoverSystem     string
 	projectDiscoverAutoImport bool
 )
 

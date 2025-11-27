@@ -10,10 +10,16 @@ import (
 
 // Config represents the main configuration structure
 type Config struct {
-	APIURL string       `mapstructure:"api_url"`
-	Author string       `mapstructure:"author"`
-	Daemon DaemonConfig `mapstructure:"daemon"`
-	Output OutputConfig `mapstructure:"output"`
+	APIURL   string         `mapstructure:"api_url"`
+	Author   string         `mapstructure:"author"`
+	Daemon   DaemonConfig   `mapstructure:"daemon"`
+	Output   OutputConfig   `mapstructure:"output"`
+	Defaults DefaultsConfig `mapstructure:"defaults"`
+}
+
+// DefaultsConfig contains default values for commands
+type DefaultsConfig struct {
+	Project string `mapstructure:"project"`
 }
 
 // DaemonConfig contains daemon-specific settings
@@ -66,6 +72,7 @@ func loadFromFile(filePath string, enableEnv bool) (*Config, error) {
 	v.SetDefault("daemon.projects", []int{})
 	v.SetDefault("output.format", "text")
 	v.SetDefault("output.color", true)
+	v.SetDefault("defaults.project", "")
 
 	// Enable environment variable support with TODU_ prefix
 	if enableEnv {
@@ -104,6 +111,7 @@ func loadFromPaths(paths []string, enableEnv bool) (*Config, error) {
 	v.SetDefault("daemon.projects", []int{})
 	v.SetDefault("output.format", "text")
 	v.SetDefault("output.color", true)
+	v.SetDefault("defaults.project", "")
 
 	// Set config file name and type
 	v.SetConfigName("config")

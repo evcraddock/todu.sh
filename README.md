@@ -10,6 +10,7 @@ A command-line tool for synchronizing tasks across multiple systems (GitHub Issu
 - **Plugin Architecture**: Easy to add new task management systems
 - **Background Daemon**: Automatic sync with configurable intervals
 - **Task Management**: Create, update, and manage tasks via CLI
+- **Recurring Templates**: Define recurring tasks and habits with RRULE patterns
 - **Comment Sync**: Synchronize comments across systems
 - **Conflict Resolution**: Last-write-wins conflict resolution
 - **LLM-Friendly**: Designed for use by AI assistants
@@ -170,6 +171,70 @@ todu task comment 123 "This is fixed in PR #456"
 # Delete a task
 todu task delete 123
 ```
+
+### Recurring Task Templates
+
+Recurring task templates allow you to define tasks that repeat on a schedule using [RRULE](https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html) recurrence patterns.
+
+```bash
+# List all templates
+todu template list
+
+# List only active templates
+todu template list --active
+
+# Filter by type (task or habit)
+todu template list --type habit
+
+# Show template details with upcoming occurrences
+todu template show 1
+
+# Create a daily task template
+todu template create --project "My Project" --title "Daily standup" \
+  --recurrence "FREQ=DAILY" --start-date "2024-01-01" --timezone "America/Chicago"
+
+# Create a weekly habit on specific days
+todu template create --project "Personal" --title "Exercise" \
+  --type habit --recurrence "FREQ=WEEKLY;BYDAY=MO,WE,FR" \
+  --start-date "2024-01-01" --timezone "America/New_York"
+
+# Create a monthly task
+todu template create --project "Work" --title "Monthly report" \
+  --recurrence "FREQ=MONTHLY;BYMONTHDAY=1" \
+  --start-date "2024-01-01" --timezone "UTC"
+
+# Update a template
+todu template update 1 --title "Updated title"
+todu template update 1 --recurrence "FREQ=WEEKLY"
+
+# Activate/deactivate a template
+todu template activate 1
+todu template deactivate 1
+
+# Delete a template
+todu template delete 1
+```
+
+**Template Types:**
+
+- **task**: Regular recurring tasks with deadlines (e.g., weekly reports, monthly reviews)
+- **habit**: Streak-based activities for habit tracking (e.g., daily exercise, meditation)
+
+**Common RRULE Patterns:**
+
+| Pattern                              | Description                  |
+| ------------------------------------ | ---------------------------- |
+| `FREQ=DAILY`                         | Every day                    |
+| `FREQ=WEEKLY`                        | Every week                   |
+| `FREQ=WEEKLY;BYDAY=MO,WE,FR`         | Monday, Wednesday, Friday    |
+| `FREQ=MONTHLY;BYMONTHDAY=1`          | First of every month         |
+| `FREQ=MONTHLY;BYDAY=1MO`             | First Monday of every month  |
+| `FREQ=YEARLY;BYMONTH=1;BYMONTHDAY=1` | January 1st every year       |
+| `FREQ=DAILY;INTERVAL=2`              | Every other day              |
+
+**Timezones:**
+
+Templates use [IANA timezone names](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) (e.g., `America/New_York`, `Europe/London`, `Asia/Tokyo`). Common shortcuts like `EST`, `CST`, `PST` are also supported.
 
 ### Daemon Management
 

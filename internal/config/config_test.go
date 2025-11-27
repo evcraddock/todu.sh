@@ -282,3 +282,76 @@ func TestLoadWithEmptyPath(t *testing.T) {
 		t.Error("Expected APIURL to be set (at least to default)")
 	}
 }
+
+func TestLoadDefaultsProject(t *testing.T) {
+	// Use a temporary directory to ensure no config file exists
+	tmpDir := t.TempDir()
+
+	// Load configuration from temp dir only (no env vars)
+	config, err := loadFromPaths([]string{tmpDir}, false)
+	if err != nil {
+		t.Fatalf("Expected no error when loading defaults, got: %v", err)
+	}
+
+	if config == nil {
+		t.Fatal("Expected config to be non-nil")
+	}
+
+	// Verify defaults.project is empty by default
+	if config.Defaults.Project != "" {
+		t.Errorf("Expected Defaults.Project to be empty, got '%s'", config.Defaults.Project)
+	}
+}
+
+func TestLoadWithDefaultsProject(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := t.TempDir()
+
+	// Create a config file with defaults.project
+	configContent := `api_url: http://example.com:9000
+defaults:
+  project: Inbox
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "config.yaml"), []byte(configContent), 0644); err != nil {
+		t.Fatalf("Failed to write config file: %v", err)
+	}
+
+	// Load configuration from temp dir only (no env vars)
+	config, err := loadFromPaths([]string{tmpDir}, false)
+	if err != nil {
+		t.Fatalf("Expected no error when loading config file, got: %v", err)
+	}
+
+	if config == nil {
+		t.Fatal("Expected config to be non-nil")
+	}
+
+	// Verify values from config file
+	if config.Defaults.Project != "Inbox" {
+		t.Errorf("Expected Defaults.Project to be 'Inbox', got '%s'", config.Defaults.Project)
+	}
+}
+
+func TestLoadDefaultsProjectFromEnv(t *testing.T) {
+	// Use a temporary directory to ensure no config file exists
+	tmpDir := t.TempDir()
+
+	// Set environment variable
+	os.Setenv("TODU_DEFAULTS_PROJECT", "EnvInbox")
+	defer os.Unsetenv("TODU_DEFAULTS_PROJECT")
+
+	// Load configuration from temp dir with env vars enabled
+	config, err := loadFromPaths([]string{tmpDir}, true)
+	if err != nil {
+		t.Fatalf("Expected no error when loading with env vars, got: %v", err)
+	}
+
+	if config == nil {
+		t.Fatal("Expected config to be non-nil")
+	}
+
+	// Verify environment variable overrides default
+	if config.Defaults.Project != "EnvInbox" {
+		t.Errorf("Expected Defaults.Project from env to be 'EnvInbox', got '%s'", config.Defaults.Project)
+	}
+}

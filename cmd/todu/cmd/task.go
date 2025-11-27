@@ -48,7 +48,8 @@ var taskCreateCmd = &cobra.Command{
 	Long: `Create a new task in todu.
 
 Tasks must belong to a project. Use --project to specify which project
-the task belongs to.`,
+the task belongs to, or configure defaults.project in your config file
+to use a default project when --project is not specified.`,
 	RunE: runTaskCreate,
 }
 
@@ -102,25 +103,27 @@ var (
 	taskListLimit           int
 
 	// Create flags
-	taskCreateTitle       string
-	taskCreateProject     string
-	taskCreateDescription string
-	taskCreateStatus      string
-	taskCreatePriority    string
-	taskCreateDue         string
-	taskCreateLabels      []string
-	taskCreateAssignees   []string
-	taskCreateExternalID  string
+	taskCreateTitle         string
+	taskCreateProject       string
+	taskCreateDescription   string
+	taskCreateStatus        string
+	taskCreatePriority      string
+	taskCreateDue           string
+	taskCreateLabels        []string
+	taskCreateAssignees     []string
+	taskCreateExternalID    string
+	taskCreateTemplate      int
+	taskCreateScheduledDate string
 
 	// Update flags
-	taskUpdateTitle          string
-	taskUpdateDescription    string
-	taskUpdateStatus         string
-	taskUpdatePriority       string
-	taskUpdateDue            string
-	taskUpdateAddLabels      []string
-	taskUpdateRemoveLabels   []string
-	taskUpdateAddAssignees   []string
+	taskUpdateTitle           string
+	taskUpdateDescription     string
+	taskUpdateStatus          string
+	taskUpdatePriority        string
+	taskUpdateDue             string
+	taskUpdateAddLabels       []string
+	taskUpdateRemoveLabels    []string
+	taskUpdateAddAssignees    []string
 	taskUpdateRemoveAssignees []string
 
 	// Comment flags
@@ -157,7 +160,7 @@ func init() {
 
 	// Create flags
 	taskCreateCmd.Flags().StringVar(&taskCreateTitle, "title", "", "Task title (required)")
-	taskCreateCmd.Flags().StringVarP(&taskCreateProject, "project", "p", "", "Project ID or name (required)")
+	taskCreateCmd.Flags().StringVarP(&taskCreateProject, "project", "p", "", "Project ID or name (uses defaults.project if not specified)")
 	taskCreateCmd.Flags().StringVar(&taskCreateDescription, "description", "", "Task description")
 	taskCreateCmd.Flags().StringVar(&taskCreateStatus, "status", "active", "Task status")
 	taskCreateCmd.Flags().StringVar(&taskCreatePriority, "priority", "", "Task priority")
@@ -165,6 +168,8 @@ func init() {
 	taskCreateCmd.Flags().StringSliceVar(&taskCreateLabels, "label", []string{}, "Task label (repeatable)")
 	taskCreateCmd.Flags().StringSliceVar(&taskCreateAssignees, "assignee", []string{}, "Task assignee (repeatable)")
 	taskCreateCmd.Flags().StringVar(&taskCreateExternalID, "external-id", "", "External ID")
+	taskCreateCmd.Flags().IntVar(&taskCreateTemplate, "template", 0, "Link task to recurring template ID")
+	taskCreateCmd.Flags().StringVar(&taskCreateScheduledDate, "scheduled-date", "", "Scheduled date for recurring task (YYYY-MM-DD)")
 
 	// Update flags
 	taskUpdateCmd.Flags().StringVar(&taskUpdateTitle, "title", "", "Update task title")
@@ -493,6 +498,15 @@ func displayTask(task *types.Task, comments []*types.Comment) {
 		fmt.Printf("Due Date:    %s\n", task.DueDate.Format("2006-01-02"))
 	}
 
+	if task.TemplateID != nil {
+		fmt.Printf("Template ID: %d\n", *task.TemplateID)
+		fmt.Println("             (Next occurrence will be generated when marked done)")
+	}
+
+	if task.ScheduledDate != nil {
+		fmt.Printf("Scheduled:   %s\n", task.ScheduledDate.Format("2006-01-02"))
+	}
+
 	fmt.Printf("Created:     %s\n", task.CreatedAt.Format("2006-01-02 15:04:05"))
 	fmt.Printf("Updated:     %s\n", task.UpdatedAt.Format("2006-01-02 15:04:05"))
 
@@ -547,17 +561,26 @@ func runTaskCreate(cmd *cobra.Command, args []string) error {
 	if taskCreateTitle == "" {
 		return fmt.Errorf("--title is required")
 	}
-	if taskCreateProject == "" {
-		return fmt.Errorf("--project is required")
-	}
 
 	apiClient := api.NewClient(cfg.APIURL)
 	ctx := context.Background()
 
-	// Resolve project ID from name or ID
-	projectID, err := resolveProjectID(ctx, apiClient, taskCreateProject)
-	if err != nil {
-		return fmt.Errorf("failed to resolve project: %w", err)
+	// Resolve project ID from flag, config default, or error
+	var projectID int
+	if taskCreateProject != "" {
+		// Use the project from flag
+		projectID, err = resolveProjectID(ctx, apiClient, taskCreateProject)
+		if err != nil {
+			return fmt.Errorf("failed to resolve project: %w", err)
+		}
+	} else if cfg.Defaults.Project != "" {
+		// Use the default project from config (auto-create if needed)
+		projectID, err = ensureDefaultProject(ctx, apiClient, cfg.Defaults.Project)
+		if err != nil {
+			return fmt.Errorf("failed to ensure default project: %w", err)
+		}
+	} else {
+		return fmt.Errorf("--project is required (or configure defaults.project in config)")
 	}
 
 	// Build task create request
@@ -595,6 +618,20 @@ func runTaskCreate(cmd *cobra.Command, args []string) error {
 	// Add assignees
 	if len(taskCreateAssignees) > 0 {
 		taskCreate.Assignees = taskCreateAssignees
+	}
+
+	// Add template link
+	if taskCreateTemplate > 0 {
+		taskCreate.TemplateID = &taskCreateTemplate
+	}
+
+	// Add scheduled date
+	if taskCreateScheduledDate != "" {
+		scheduledDate, err := time.Parse("2006-01-02", taskCreateScheduledDate)
+		if err != nil {
+			return fmt.Errorf("invalid scheduled date format (use YYYY-MM-DD): %w", err)
+		}
+		taskCreate.ScheduledDate = &scheduledDate
 	}
 
 	task, err := apiClient.CreateTask(ctx, taskCreate)

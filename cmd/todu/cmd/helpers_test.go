@@ -140,5 +140,133 @@ func TestResolveSystemID_EmptyString(t *testing.T) {
 	}
 }
 
+func TestEnsureDefaultProject_ReturnsExistingID(t *testing.T) {
+	// Setup mock server that returns existing project
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/projects/":
+			// Return existing project
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`[{"id": 10, "name": "Inbox", "system_id": 1, "external_id": "test", "status": "active", "sync_strategy": "bidirectional", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}]`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	client := api.NewClient(server.URL)
+	projectID, err := ensureDefaultProject(context.Background(), client, "Inbox")
+
+	if err != nil {
+		t.Errorf("ensureDefaultProject() error = %v, want nil", err)
+	}
+	if projectID != 10 {
+		t.Errorf("ensureDefaultProject() = %d, want 10", projectID)
+	}
+}
+
+func TestEnsureDefaultProject_CaseInsensitiveMatch(t *testing.T) {
+	// Setup mock server that returns existing project with different case
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/projects/":
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`[{"id": 15, "name": "INBOX", "system_id": 1, "external_id": "test", "status": "active", "sync_strategy": "bidirectional", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}]`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	client := api.NewClient(server.URL)
+	projectID, err := ensureDefaultProject(context.Background(), client, "inbox")
+
+	if err != nil {
+		t.Errorf("ensureDefaultProject() error = %v, want nil", err)
+	}
+	if projectID != 15 {
+		t.Errorf("ensureDefaultProject() = %d, want 15", projectID)
+	}
+}
+
+func TestEnsureDefaultProject_CreatesWhenNotExist(t *testing.T) {
+	// Setup mock server that returns empty projects list, then creates
+	projectCreateCalled := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/projects/":
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte("[]"))
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/systems/":
+			// Return existing local system
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`[{"id": 1, "identifier": "local", "name": "Local Tasks", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}]`))
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/projects/":
+			projectCreateCalled = true
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"id": 20, "name": "Inbox", "system_id": 1, "external_id": "uuid", "status": "active", "sync_strategy": "bidirectional", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	client := api.NewClient(server.URL)
+	projectID, err := ensureDefaultProject(context.Background(), client, "Inbox")
+
+	if err != nil {
+		t.Errorf("ensureDefaultProject() error = %v, want nil", err)
+	}
+	if projectID != 20 {
+		t.Errorf("ensureDefaultProject() = %d, want 20", projectID)
+	}
+	if !projectCreateCalled {
+		t.Error("CreateProject should be called when default project doesn't exist")
+	}
+}
+
+func TestEnsureDefaultProject_CreatesLocalSystem(t *testing.T) {
+	// Setup mock server that returns empty systems and projects, then creates both
+	systemCreateCalled := false
+	projectCreateCalled := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/projects/":
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte("[]"))
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/systems/":
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte("[]"))
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/systems/":
+			systemCreateCalled = true
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"id": 1, "identifier": "local", "name": "Local Tasks", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/projects/":
+			projectCreateCalled = true
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"id": 25, "name": "Inbox", "system_id": 1, "external_id": "uuid", "status": "active", "sync_strategy": "bidirectional", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	client := api.NewClient(server.URL)
+	projectID, err := ensureDefaultProject(context.Background(), client, "Inbox")
+
+	if err != nil {
+		t.Errorf("ensureDefaultProject() error = %v, want nil", err)
+	}
+	if projectID != 25 {
+		t.Errorf("ensureDefaultProject() = %d, want 25", projectID)
+	}
+	if !systemCreateCalled {
+		t.Error("CreateSystem should be called when local system doesn't exist")
+	}
+	if !projectCreateCalled {
+		t.Error("CreateProject should be called when default project doesn't exist")
+	}
+}
+
 // Ensure context is used (compile-time check)
 var _ = context.Background()

@@ -47,7 +47,7 @@ the system, you'll need to configure it using environment variables.`,
 var systemShowCmd = &cobra.Command{
 	Use:   "show <id|identifier>",
 	Short: "Show system details",
-	Long:  `Display detailed information about a specific system.
+	Long: `Display detailed information about a specific system.
 
 You can specify either the system ID (numeric) or the system identifier (e.g., "github").`,
 	Args: cobra.ExactArgs(1),
@@ -68,7 +68,7 @@ and whether they are currently set.`,
 var systemRemoveCmd = &cobra.Command{
 	Use:   "remove <id|identifier>",
 	Short: "Remove a system",
-	Long:  `Remove a system from todu.
+	Long: `Remove a system from todu.
 
 You can specify either the system ID (numeric) or the system identifier (e.g., "github").`,
 	Args: cobra.ExactArgs(1),

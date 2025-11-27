@@ -503,3 +503,114 @@ func (c *Client) ListAllComments(ctx context.Context, commentType string, skip, 
 
 	return comments, nil
 }
+
+// Recurring Task Template Methods
+
+// TemplateListOptions contains optional filters for listing recurring task templates
+type TemplateListOptions struct {
+	ProjectID    *int
+	Active       *bool
+	TemplateType string
+	Skip         int
+	Limit        int
+}
+
+// ListTemplates retrieves recurring task templates with optional filters
+func (c *Client) ListTemplates(ctx context.Context, opts *TemplateListOptions) ([]*types.RecurringTaskTemplate, error) {
+	path := "/api/v1/recurring-templates/?"
+
+	if opts != nil {
+		if opts.ProjectID != nil {
+			path += fmt.Sprintf("project_id=%d&", *opts.ProjectID)
+		}
+		if opts.Active != nil {
+			path += fmt.Sprintf("is_active=%t&", *opts.Active)
+		}
+		if opts.TemplateType != "" {
+			path += fmt.Sprintf("template_type=%s&", opts.TemplateType)
+		}
+		if opts.Skip > 0 {
+			path += fmt.Sprintf("skip=%d&", opts.Skip)
+		}
+		if opts.Limit > 0 {
+			path += fmt.Sprintf("limit=%d&", opts.Limit)
+		} else {
+			path += "limit=100&"
+		}
+	} else {
+		path += "limit=100&"
+	}
+
+	// Remove trailing & or ?
+	path = path[:len(path)-1]
+
+	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var templates []*types.RecurringTaskTemplate
+	if err := parseResponse(resp, &templates); err != nil {
+		return nil, err
+	}
+
+	return templates, nil
+}
+
+// GetTemplate retrieves a specific recurring task template by ID
+func (c *Client) GetTemplate(ctx context.Context, id int) (*types.RecurringTaskTemplate, error) {
+	path := fmt.Sprintf("/api/v1/recurring-templates/%d", id)
+	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var template types.RecurringTaskTemplate
+	if err := parseResponse(resp, &template); err != nil {
+		return nil, err
+	}
+
+	return &template, nil
+}
+
+// CreateTemplate creates a new recurring task template
+func (c *Client) CreateTemplate(ctx context.Context, template *types.RecurringTaskTemplateCreate) (*types.RecurringTaskTemplate, error) {
+	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/recurring-templates/", template)
+	if err != nil {
+		return nil, err
+	}
+
+	var created types.RecurringTaskTemplate
+	if err := parseResponse(resp, &created); err != nil {
+		return nil, err
+	}
+
+	return &created, nil
+}
+
+// UpdateTemplate updates an existing recurring task template
+func (c *Client) UpdateTemplate(ctx context.Context, id int, template *types.RecurringTaskTemplateUpdate) (*types.RecurringTaskTemplate, error) {
+	path := fmt.Sprintf("/api/v1/recurring-templates/%d", id)
+	resp, err := c.doRequest(ctx, http.MethodPatch, path, template)
+	if err != nil {
+		return nil, err
+	}
+
+	var updated types.RecurringTaskTemplate
+	if err := parseResponse(resp, &updated); err != nil {
+		return nil, err
+	}
+
+	return &updated, nil
+}
+
+// DeleteTemplate deletes a recurring task template
+func (c *Client) DeleteTemplate(ctx context.Context, id int) error {
+	path := fmt.Sprintf("/api/v1/recurring-templates/%d", id)
+	resp, err := c.doRequest(ctx, http.MethodDelete, path, nil)
+	if err != nil {
+		return err
+	}
+
+	return parseResponse(resp, nil)
+}

@@ -67,15 +67,15 @@ func TestRegisterInvalidNames(t *testing.T) {
 	}
 
 	invalidNames := []string{
-		"Test",          // uppercase
-		"test_plugin",   // underscore
-		"test plugin",   // space
-		"test.plugin",   // dot
-		"test/plugin",   // slash
-		"test@plugin",   // special char
-		"",              // empty
-		"123",           // valid (numbers ok)
-		"test-123",      // valid (hyphen ok)
+		"Test",        // uppercase
+		"test_plugin", // underscore
+		"test plugin", // space
+		"test.plugin", // dot
+		"test/plugin", // slash
+		"test@plugin", // special char
+		"",            // empty
+		"123",         // valid (numbers ok)
+		"test-123",    // valid (hyphen ok)
 	}
 
 	for _, name := range invalidNames {

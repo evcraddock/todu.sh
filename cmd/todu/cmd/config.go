@@ -57,6 +57,15 @@ This shows the effective configuration after merging:
 		fmt.Println("Output:")
 		fmt.Printf("  Format: %s\n", cfg.Output.Format)
 		fmt.Printf("  Color:  %t\n", cfg.Output.Color)
+		fmt.Println()
+
+		// Defaults Configuration
+		fmt.Println("Defaults:")
+		if cfg.Defaults.Project != "" {
+			fmt.Printf("  Project: %s\n", cfg.Defaults.Project)
+		} else {
+			fmt.Println("  Project: (not set)")
+		}
 
 		return nil
 	},

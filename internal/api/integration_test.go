@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package api
@@ -120,7 +121,7 @@ func TestIntegrationTasksWithFilter(t *testing.T) {
 	projectID := projects[0].ID
 
 	// List tasks filtered by project
-	tasks, err := client.ListTasks(context.Background(), &projectID)
+	tasks, err := client.ListTasks(context.Background(), &TaskListOptions{ProjectID: &projectID})
 	if err != nil {
 		t.Fatalf("Expected no error listing tasks, got %v", err)
 	}
@@ -131,6 +132,159 @@ func TestIntegrationTasksWithFilter(t *testing.T) {
 	for _, task := range tasks {
 		if task.ProjectID != projectID {
 			t.Errorf("Expected task to belong to project %d, got %d", projectID, task.ProjectID)
+		}
+	}
+}
+
+// Template Integration Tests
+
+func TestIntegrationListTemplates(t *testing.T) {
+	client := NewClient(getAPIURL())
+	templates, err := client.ListTemplates(context.Background(), nil)
+
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	t.Logf("Found %d templates", len(templates))
+	if len(templates) > 0 {
+		t.Logf("First template: ID=%d, Title=%s, Type=%s, Active=%v",
+			templates[0].ID, templates[0].Title, templates[0].TemplateType, templates[0].IsActive)
+	}
+}
+
+func TestIntegrationTemplateLifecycle(t *testing.T) {
+	client := NewClient(getAPIURL())
+	ctx := context.Background()
+
+	// List projects to get a project ID
+	projects, err := client.ListProjects(ctx, nil)
+	if err != nil {
+		t.Fatalf("Expected no error listing projects, got %v", err)
+	}
+
+	if len(projects) == 0 {
+		t.Skip("No projects available for testing")
+	}
+
+	projectID := projects[0].ID
+
+	// Create a template
+	create := &types.RecurringTaskTemplateCreate{
+		ProjectID:      projectID,
+		Title:          "Integration Test Template",
+		RecurrenceRule: "FREQ=DAILY",
+		StartDate:      "2024-01-01",
+		Timezone:       "UTC",
+		TemplateType:   "task",
+		IsActive:       true,
+	}
+
+	template, err := client.CreateTemplate(ctx, create)
+	if err != nil {
+		t.Fatalf("Expected no error creating template, got %v", err)
+	}
+
+	t.Logf("Created template: ID=%d, Title=%s", template.ID, template.Title)
+
+	// Verify the template was created correctly
+	if template.Title != "Integration Test Template" {
+		t.Errorf("Expected title 'Integration Test Template', got '%s'", template.Title)
+	}
+	if template.RecurrenceRule != "FREQ=DAILY" {
+		t.Errorf("Expected recurrence 'FREQ=DAILY', got '%s'", template.RecurrenceRule)
+	}
+	if !template.IsActive {
+		t.Errorf("Expected template to be active")
+	}
+
+	// Get the template
+	fetched, err := client.GetTemplate(ctx, template.ID)
+	if err != nil {
+		t.Fatalf("Expected no error getting template, got %v", err)
+	}
+
+	if fetched.ID != template.ID {
+		t.Errorf("Expected template ID %d, got %d", template.ID, fetched.ID)
+	}
+
+	// Update the template
+	newTitle := "Updated Integration Test Template"
+	update := &types.RecurringTaskTemplateUpdate{
+		Title: &newTitle,
+	}
+
+	updated, err := client.UpdateTemplate(ctx, template.ID, update)
+	if err != nil {
+		t.Fatalf("Expected no error updating template, got %v", err)
+	}
+
+	if updated.Title != newTitle {
+		t.Errorf("Expected title '%s', got '%s'", newTitle, updated.Title)
+	}
+
+	// Deactivate the template
+	active := false
+	deactivate := &types.RecurringTaskTemplateUpdate{
+		IsActive: &active,
+	}
+
+	deactivated, err := client.UpdateTemplate(ctx, template.ID, deactivate)
+	if err != nil {
+		t.Fatalf("Expected no error deactivating template, got %v", err)
+	}
+
+	if deactivated.IsActive {
+		t.Errorf("Expected template to be inactive")
+	}
+
+	// Delete the template
+	err = client.DeleteTemplate(ctx, template.ID)
+	if err != nil {
+		t.Fatalf("Expected no error deleting template, got %v", err)
+	}
+
+	t.Logf("Successfully completed template lifecycle test")
+}
+
+func TestIntegrationListTemplatesWithFilters(t *testing.T) {
+	client := NewClient(getAPIURL())
+	ctx := context.Background()
+
+	// Test filtering by active status
+	active := true
+	templates, err := client.ListTemplates(ctx, &TemplateListOptions{
+		Active: &active,
+	})
+
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	t.Logf("Found %d active templates", len(templates))
+
+	// Verify all returned templates are active
+	for _, tmpl := range templates {
+		if !tmpl.IsActive {
+			t.Errorf("Expected all templates to be active, but ID=%d is inactive", tmpl.ID)
+		}
+	}
+
+	// Test filtering by template type
+	templates, err = client.ListTemplates(ctx, &TemplateListOptions{
+		TemplateType: "habit",
+	})
+
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	t.Logf("Found %d habit templates", len(templates))
+
+	// Verify all returned templates are habits
+	for _, tmpl := range templates {
+		if tmpl.TemplateType != "habit" {
+			t.Errorf("Expected all templates to be habits, but ID=%d is '%s'", tmpl.ID, tmpl.TemplateType)
 		}
 	}
 }

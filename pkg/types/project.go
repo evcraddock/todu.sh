@@ -24,8 +24,8 @@ type ProjectCreate struct {
 	SystemID     int     `json:"system_id"`
 	ExternalID   string  `json:"external_id"`
 	Status       string  `json:"status"`
-	Priority     *string `json:"priority,omitempty"`  // "low", "medium", or "high"
-	SyncStrategy string  `json:"sync_strategy"`       // "pull", "push", or "bidirectional"
+	Priority     *string `json:"priority,omitempty"` // "low", "medium", or "high"
+	SyncStrategy string  `json:"sync_strategy"`      // "pull", "push", or "bidirectional"
 }
 
 // ProjectUpdate represents data for updating a project

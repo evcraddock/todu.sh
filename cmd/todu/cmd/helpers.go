@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/evcraddock/todu.sh/internal/api"
 	"github.com/evcraddock/todu.sh/internal/config"
 	"github.com/evcraddock/todu.sh/pkg/types"
+	"github.com/google/uuid"
 )
 
 // ensureLocalSystem checks if the "local" system exists and creates it if not.
@@ -77,4 +79,47 @@ func resolveSystemID(client *api.Client, systemArg string) (int, error) {
 // loadConfig loads the configuration using the global --config flag if set
 func loadConfig() (*config.Config, error) {
 	return config.Load(GetConfigFile())
+}
+
+// ensureDefaultProject ensures the default project exists, creating it if needed.
+// Returns the project ID for the default project.
+// The project name is resolved from config (defaults.project).
+// If the project doesn't exist, it's auto-created using the local system.
+func ensureDefaultProject(ctx context.Context, client *api.Client, projectName string) (int, error) {
+	// Check if project already exists (case-insensitive)
+	projects, err := client.ListProjects(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to list projects: %w", err)
+	}
+
+	lowerName := strings.ToLower(projectName)
+	for _, project := range projects {
+		if strings.ToLower(project.Name) == lowerName {
+			return project.ID, nil
+		}
+	}
+
+	// Project doesn't exist, auto-create it using the local system
+	systemID, err := ensureLocalSystem(client)
+	if err != nil {
+		return 0, fmt.Errorf("failed to ensure local system: %w", err)
+	}
+
+	description := "Default project for quick task capture"
+	projectCreate := &types.ProjectCreate{
+		Name:         projectName,
+		Description:  &description,
+		SystemID:     systemID,
+		ExternalID:   uuid.New().String(),
+		Status:       "active",
+		SyncStrategy: "bidirectional",
+	}
+
+	project, err := client.CreateProject(ctx, projectCreate)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create default project: %w", err)
+	}
+
+	fmt.Printf("Auto-created default project %q (ID: %d)\n", project.Name, project.ID)
+	return project.ID, nil
 }
