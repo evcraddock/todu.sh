@@ -24,6 +24,7 @@ type SyncEngine interface {
 // Status represents the current daemon status
 type Status struct {
 	Running       bool      `json:"running"`
+	PID           int       `json:"pid,omitempty"`
 	LastSyncTime  time.Time `json:"last_sync_time,omitempty"`
 	LastSyncError string    `json:"last_sync_error,omitempty"`
 	ErrorCount    int       `json:"error_count"`
@@ -55,6 +56,7 @@ func New(engine SyncEngine, config *config.Config) *Daemon {
 // Start begins the daemon main loop
 func (d *Daemon) Start(ctx context.Context) error {
 	d.status.Running = true
+	d.status.PID = os.Getpid()
 	d.writeStatus()
 
 	log.Println("Daemon starting...")
@@ -144,6 +146,7 @@ func (d *Daemon) Stop() error {
 // stop is the internal stop implementation
 func (d *Daemon) stop() {
 	d.status.Running = false
+	d.status.PID = 0
 	d.writeStatus()
 	close(d.doneChan)
 	log.Println("Daemon stopped")
@@ -240,6 +243,25 @@ func ReadStatus() (*Status, error) {
 	var status Status
 	if err := json.Unmarshal(data, &status); err != nil {
 		return nil, fmt.Errorf("failed to parse status file: %w", err)
+	}
+
+	// Verify the process is actually running if status says it is
+	if status.Running && status.PID > 0 {
+		// Check if process exists by sending signal 0 (doesn't actually send a signal)
+		process, err := os.FindProcess(status.PID)
+		if err != nil {
+			// Process doesn't exist
+			status.Running = false
+			status.PID = 0
+		} else {
+			// On Unix systems, FindProcess always succeeds, so we need to signal it
+			err := process.Signal(syscall.Signal(0))
+			if err != nil {
+				// Process doesn't exist or we don't have permission
+				status.Running = false
+				status.PID = 0
+			}
+		}
 	}
 
 	return &status, nil

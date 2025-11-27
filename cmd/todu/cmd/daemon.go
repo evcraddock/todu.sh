@@ -189,7 +189,7 @@ func runDaemonInstall(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to install service: %w", err)
 	}
 
-	fmt.Println("Daemon service installed successfully")
+	fmt.Println("Daemon service installed and started successfully")
 	fmt.Printf("Sync interval: %s\n", cfg.Daemon.Interval)
 	if len(cfg.Daemon.Projects) > 0 {
 		fmt.Printf("Syncing projects: %v\n", cfg.Daemon.Projects)
@@ -197,8 +197,13 @@ func runDaemonInstall(cmd *cobra.Command, args []string) error {
 		fmt.Println("Syncing all projects")
 	}
 	fmt.Println()
-	fmt.Println("To start the daemon, run:")
-	fmt.Println("  todu daemon start")
+	fmt.Println("The daemon is now running in the background and will start automatically at login.")
+	fmt.Println()
+	fmt.Println("Useful commands:")
+	fmt.Println("  todu daemon status   - Check daemon status")
+	fmt.Println("  todu daemon stop     - Stop the daemon")
+	fmt.Println("  todu daemon restart  - Restart the daemon")
+	fmt.Println("  todu daemon logs     - View daemon logs")
 
 	return nil
 }

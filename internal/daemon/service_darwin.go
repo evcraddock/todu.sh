@@ -139,7 +139,13 @@ func (s *darwinService) Uninstall() error {
 }
 
 func (s *darwinService) Start() error {
-	cmd := exec.Command("launchctl", "start", s.label)
+	// Use 'load' to start the service (works with KeepAlive)
+	// If already loaded, this will fail, so check first
+	if s.isLoaded() {
+		return nil // Already running
+	}
+
+	cmd := exec.Command("launchctl", "load", s.plistPath)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to start service: %w\nOutput: %s", err, string(output))
 	}
@@ -147,11 +153,24 @@ func (s *darwinService) Start() error {
 }
 
 func (s *darwinService) Stop() error {
-	cmd := exec.Command("launchctl", "stop", s.label)
+	// Use 'unload' instead of 'stop' to actually stop the service
+	// This works correctly with KeepAlive: true
+	if !s.isLoaded() {
+		return nil // Already stopped
+	}
+
+	cmd := exec.Command("launchctl", "unload", s.plistPath)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to stop service: %w\nOutput: %s", err, string(output))
 	}
 	return nil
+}
+
+// isLoaded checks if the service is currently loaded in launchd
+func (s *darwinService) isLoaded() bool {
+	cmd := exec.Command("launchctl", "list", s.label)
+	err := cmd.Run()
+	return err == nil // If no error, service is loaded
 }
 
 func (s *darwinService) IsInstalled() bool {
