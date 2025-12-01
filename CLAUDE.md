@@ -1,1 +1,2 @@
 - NEVER run `make dev` the user will ALWAYS start and stop the dev environment
+- don'e use webfetch for localhost or internal network addresses
