@@ -443,14 +443,17 @@ func displayTemplate(tmpl *types.RecurringTaskTemplate) {
 		fmt.Println(strings.Join(assigneeNames, ", "))
 	}
 
-	// Show next 5 upcoming occurrences
-	occurrences := getNextOccurrences(tmpl, 5)
+	// Show next due datetime
+	occurrences := getNextOccurrences(tmpl, 1)
 	if len(occurrences) > 0 {
 		fmt.Println()
-		fmt.Println("Next Occurrences:")
-		for i, occ := range occurrences {
-			fmt.Printf("  %d. %s\n", i+1, occ.Format("Mon, Jan 2, 2006"))
+		// Load the template's timezone for display
+		loc, err := time.LoadLocation(tmpl.Timezone)
+		if err != nil {
+			loc = time.UTC
 		}
+		nextDue := occurrences[0].In(loc)
+		fmt.Printf("Next Due:     %s\n", nextDue.Format("Mon, Jan 2, 2006 15:04:05 MST"))
 	}
 }
 

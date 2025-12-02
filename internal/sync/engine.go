@@ -283,8 +283,9 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 
 	// Process all tasks: create new ones and update existing ones
 	for _, toduTask := range toduTasks {
-		// Skip tasks that haven't been modified since last sync (optimization)
-		if toduTask.ExternalID != "" && project.LastSyncedAt != nil && !toduTask.UpdatedAt.After(*project.LastSyncedAt) {
+		// Skip tasks that haven't been modified since last successful push (optimization)
+		// Uses per-task last_pushed_at instead of project-level last_synced_at for accurate tracking
+		if toduTask.ExternalID != "" && toduTask.LastPushedAt != nil && !toduTask.UpdatedAt.After(*toduTask.LastPushedAt) {
 			pr.Skipped++
 			continue
 		}
@@ -310,10 +311,12 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 					pr.Errors = append(pr.Errors, fmt.Errorf("failed to create external task %q: %w", toduTask.Title, err))
 					continue
 				}
-				// Update Todu task with external_id and source_url
+				// Update Todu task with external_id, source_url, and last_pushed_at
+				now := time.Now()
 				taskUpdate := &types.TaskUpdate{
-					ExternalID: &createdTask.ExternalID,
-					SourceURL:  createdTask.SourceURL,
+					ExternalID:   &createdTask.ExternalID,
+					SourceURL:    createdTask.SourceURL,
+					LastPushedAt: &now,
 				}
 				_, err = e.apiClient.UpdateTask(ctx, toduTask.ID, taskUpdate)
 				if err != nil {
@@ -383,6 +386,16 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 					}
 					pr.Errors = append(pr.Errors, fmt.Errorf("failed to push task %q: %w", toduTask.Title, err))
 					continue
+				}
+				// Update last_pushed_at after successful push
+				now := time.Now()
+				lastPushedUpdate := &types.TaskUpdate{
+					LastPushedAt: &now,
+				}
+				_, err = e.apiClient.UpdateTask(ctx, toduTask.ID, lastPushedUpdate)
+				if err != nil {
+					e.logger.Warn().Err(err).Str("task", toduTask.Title).Msg("Failed to update last_pushed_at")
+					// Don't fail the sync, just log the warning
 				}
 			}
 			e.logger.Debug().Str("task", toduTask.Title).Msg("Pushed task")

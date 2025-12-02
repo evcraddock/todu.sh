@@ -17,6 +17,7 @@ type Task struct {
 	ScheduledDate *time.Time `json:"scheduled_date,omitempty"`
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
+	LastPushedAt  *time.Time `json:"last_pushed_at,omitempty"`
 	Labels        []Label    `json:"labels,omitempty"`
 	Assignees     []Assignee `json:"assignees,omitempty"`
 }
@@ -39,13 +40,14 @@ type TaskCreate struct {
 
 // TaskUpdate represents data for updating an existing task
 type TaskUpdate struct {
-	ExternalID  *string    `json:"external_id,omitempty"`
-	SourceURL   *string    `json:"source_url,omitempty"`
-	Title       *string    `json:"title,omitempty"`
-	Description *string    `json:"description,omitempty"`
-	Status      *string    `json:"status,omitempty"`
-	Priority    *string    `json:"priority,omitempty"`
-	DueDate     *time.Time `json:"due_date,omitempty"`
-	Labels      []string   `json:"labels,omitempty"`
-	Assignees   []string   `json:"assignees,omitempty"`
+	ExternalID   *string    `json:"external_id,omitempty"`
+	SourceURL    *string    `json:"source_url,omitempty"`
+	Title        *string    `json:"title,omitempty"`
+	Description  *string    `json:"description,omitempty"`
+	Status       *string    `json:"status,omitempty"`
+	Priority     *string    `json:"priority,omitempty"`
+	DueDate      *time.Time `json:"due_date,omitempty"`
+	LastPushedAt *time.Time `json:"last_pushed_at,omitempty"`
+	Labels       []string   `json:"labels,omitempty"`
+	Assignees    []string   `json:"assignees,omitempty"`
 }
