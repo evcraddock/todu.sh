@@ -100,6 +100,8 @@ var (
 	taskListSearch          string
 	taskListDueBefore       string
 	taskListDueAfter        string
+	taskListTemplateID      int
+	taskListScheduledDate   string
 	taskListLimit           int
 
 	// Create flags
@@ -156,6 +158,8 @@ func init() {
 	taskListCmd.Flags().StringVar(&taskListSearch, "search", "", "Full-text search")
 	taskListCmd.Flags().StringVar(&taskListDueBefore, "due-before", "", "Due before date (YYYY-MM-DD)")
 	taskListCmd.Flags().StringVar(&taskListDueAfter, "due-after", "", "Due after date (YYYY-MM-DD)")
+	taskListCmd.Flags().IntVar(&taskListTemplateID, "template-id", 0, "Filter by recurring template ID")
+	taskListCmd.Flags().StringVar(&taskListScheduledDate, "scheduled-date", "", "Filter by scheduled date (YYYY-MM-DD)")
 	taskListCmd.Flags().IntVar(&taskListLimit, "limit", 50, "Limit number of results")
 
 	// Create flags
@@ -255,6 +259,16 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to resolve project: %w", err)
 		}
 		opts.ProjectID = &projectID
+	}
+
+	// Set template ID filter
+	if taskListTemplateID > 0 {
+		opts.TemplateID = &taskListTemplateID
+	}
+
+	// Set scheduled date filter
+	if taskListScheduledDate != "" {
+		opts.ScheduledDate = taskListScheduledDate
 	}
 
 	tasks, err := apiClient.ListTasks(ctx, opts)

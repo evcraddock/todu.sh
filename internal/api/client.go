@@ -277,6 +277,8 @@ type TaskListOptions struct {
 	Priority        string
 	ProjectStatus   []string
 	ProjectPriority []string
+	TemplateID      *int
+	ScheduledDate   string
 	Limit           int
 }
 
@@ -303,6 +305,12 @@ func (c *Client) ListTasks(ctx context.Context, opts *TaskListOptions) ([]*types
 			for _, pp := range opts.ProjectPriority {
 				path += fmt.Sprintf("project_priority=%s&", pp)
 			}
+		}
+		if opts.TemplateID != nil {
+			path += fmt.Sprintf("template_id=%d&", *opts.TemplateID)
+		}
+		if opts.ScheduledDate != "" {
+			path += fmt.Sprintf("scheduled_date=%s&", opts.ScheduledDate)
 		}
 		if opts.Limit > 0 {
 			path += fmt.Sprintf("limit=%d&", opts.Limit)
