@@ -66,6 +66,15 @@ This shows the effective configuration after merging:
 		} else {
 			fmt.Println("  Project: (not set)")
 		}
+		fmt.Println()
+
+		// Paths Configuration
+		fmt.Println("Paths:")
+		if cfg.LocalReports != "" {
+			fmt.Printf("  Local Reports: %s\n", cfg.LocalReports)
+		} else {
+			fmt.Println("  Local Reports: (not set)")
+		}
 
 		return nil
 	},

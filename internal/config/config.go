@@ -12,6 +12,7 @@ import (
 type Config struct {
 	APIURL         string                 `mapstructure:"api_url"`
 	Author         string                 `mapstructure:"author"`
+	LocalReports   string                 `mapstructure:"local_reports"`
 	Daemon         DaemonConfig           `mapstructure:"daemon"`
 	Output         OutputConfig           `mapstructure:"output"`
 	Defaults       DefaultsConfig         `mapstructure:"defaults"`
@@ -78,6 +79,7 @@ func loadFromFile(filePath string, enableEnv bool) (*Config, error) {
 	// Set defaults
 	v.SetDefault("api_url", "http://localhost:8000")
 	v.SetDefault("author", "")
+	v.SetDefault("local_reports", "")
 	v.SetDefault("daemon.interval", "5m")
 	v.SetDefault("daemon.projects", []int{})
 	v.SetDefault("daemon.log_level", "info")
@@ -122,6 +124,7 @@ func loadFromPaths(paths []string, enableEnv bool) (*Config, error) {
 	// Set defaults
 	v.SetDefault("api_url", "http://localhost:8000")
 	v.SetDefault("author", "")
+	v.SetDefault("local_reports", "")
 	v.SetDefault("daemon.interval", "5m")
 	v.SetDefault("daemon.projects", []int{})
 	v.SetDefault("daemon.log_level", "info")
