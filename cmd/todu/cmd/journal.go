@@ -167,7 +167,7 @@ func runJournalAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("Journal entry created (ID: %d)\n", entry.ID)
-	fmt.Printf("[%s] %s:\n", entry.CreatedAt.Format("2006-01-02 15:04"), entry.Author)
+	fmt.Printf("[%s] %s:\n", entry.CreatedAt.Local().Format("2006-01-02 15:04"), entry.Author)
 	fmt.Println(entry.Content)
 	return nil
 }
@@ -237,9 +237,9 @@ func filterJournalsByDate(entries []*types.Comment) []*types.Comment {
 			}
 		}
 
-		// Since date filter
+		// Since date filter (user input is local timezone, entry.CreatedAt is UTC)
 		if journalListSince != "" {
-			sinceDate, err := time.Parse("2006-01-02", journalListSince)
+			sinceDate, err := time.ParseInLocation("2006-01-02", journalListSince, time.Local)
 			if err == nil && entry.CreatedAt.Before(sinceDate) {
 				continue
 			}
@@ -275,7 +275,7 @@ func displayJournalsTable(entries []*types.Comment) error {
 
 		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\n",
 			entry.ID,
-			entry.CreatedAt.Format("2006-01-02 15:04"),
+			entry.CreatedAt.Local().Format("2006-01-02 15:04"),
 			entry.Author,
 			taskDisplay,
 			content,
@@ -344,8 +344,8 @@ func displayJournalEntry(entry *types.Comment) {
 	fmt.Println()
 
 	fmt.Printf("Author:  %s\n", entry.Author)
-	fmt.Printf("Created: %s\n", entry.CreatedAt.Format("2006-01-02 15:04:05"))
-	fmt.Printf("Updated: %s\n", entry.UpdatedAt.Format("2006-01-02 15:04:05"))
+	fmt.Printf("Created: %s\n", entry.CreatedAt.Local().Format("2006-01-02 15:04:05"))
+	fmt.Printf("Updated: %s\n", entry.UpdatedAt.Local().Format("2006-01-02 15:04:05"))
 	fmt.Println()
 	fmt.Println(entry.Content)
 }

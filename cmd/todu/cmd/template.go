@@ -381,7 +381,7 @@ func displayAssociatedTasks(tasks []*types.Task) {
 	for _, task := range tasks {
 		scheduled := ""
 		if task.ScheduledDate != nil {
-			scheduled = task.ScheduledDate.Format("2006-01-02")
+			scheduled = task.ScheduledDate.Local().Format("2006-01-02")
 		}
 		fmt.Printf("  #%d: %s [%s] %s\n", task.ID, truncate(task.Title, 30), task.Status, scheduled)
 	}
@@ -408,14 +408,14 @@ func displayTemplate(tmpl *types.RecurringTaskTemplate) {
 	fmt.Printf("Recurrence:   %s\n", tmpl.RecurrenceRule)
 	fmt.Printf("              (%s)\n", rruleToHuman(tmpl.RecurrenceRule))
 	fmt.Printf("Timezone:     %s\n", tmpl.Timezone)
-	fmt.Printf("Start Date:   %s\n", tmpl.StartDate.Format("2006-01-02"))
+	fmt.Printf("Start Date:   %s\n", tmpl.StartDate.Local().Format("2006-01-02"))
 	if tmpl.EndDate != nil {
-		fmt.Printf("End Date:     %s\n", tmpl.EndDate.Format("2006-01-02"))
+		fmt.Printf("End Date:     %s\n", tmpl.EndDate.Local().Format("2006-01-02"))
 	}
 
 	fmt.Println()
-	fmt.Printf("Created:      %s\n", tmpl.CreatedAt.Format("2006-01-02 15:04:05"))
-	fmt.Printf("Updated:      %s\n", tmpl.UpdatedAt.Format("2006-01-02 15:04:05"))
+	fmt.Printf("Created:      %s\n", tmpl.CreatedAt.Local().Format("2006-01-02 15:04:05"))
+	fmt.Printf("Updated:      %s\n", tmpl.UpdatedAt.Local().Format("2006-01-02 15:04:05"))
 
 	if tmpl.Description != nil && *tmpl.Description != "" {
 		fmt.Println()

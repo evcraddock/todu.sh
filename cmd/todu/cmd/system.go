@@ -266,8 +266,8 @@ func runSystemShow(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Printf("\nCreated: %s\n", system.CreatedAt.Format("2006-01-02 15:04:05"))
-	fmt.Printf("Updated: %s\n", system.UpdatedAt.Format("2006-01-02 15:04:05"))
+	fmt.Printf("\nCreated: %s\n", system.CreatedAt.Local().Format("2006-01-02 15:04:05"))
+	fmt.Printf("Updated: %s\n", system.UpdatedAt.Local().Format("2006-01-02 15:04:05"))
 
 	// Check configuration
 	pluginConfig, _ := registry.LoadPluginConfig(system.Identifier)

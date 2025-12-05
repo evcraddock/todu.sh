@@ -5,12 +5,43 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/evcraddock/todu.sh/internal/api"
 	"github.com/evcraddock/todu.sh/internal/config"
 	"github.com/evcraddock/todu.sh/pkg/types"
 	"github.com/google/uuid"
 )
+
+// parseDateToUTCStart parses a date string (YYYY-MM-DD) in local timezone
+// and returns the start of that day (00:00:00) converted to UTC as RFC3339.
+// This is useful for "after" filters where we want everything from the start of the local day.
+func parseDateToUTCStart(dateStr string) (string, error) {
+	// Parse the date in local timezone
+	loc := time.Local
+	t, err := time.ParseInLocation("2006-01-02", dateStr, loc)
+	if err != nil {
+		return "", fmt.Errorf("invalid date format %q, expected YYYY-MM-DD: %w", dateStr, err)
+	}
+	// Convert to UTC and format as RFC3339
+	return t.UTC().Format(time.RFC3339), nil
+}
+
+// parseDateToUTCEnd parses a date string (YYYY-MM-DD) in local timezone
+// and returns the end of that day (23:59:59.999999999) converted to UTC as RFC3339.
+// This is useful for "before" filters where we want everything up to the end of the local day.
+func parseDateToUTCEnd(dateStr string) (string, error) {
+	// Parse the date in local timezone
+	loc := time.Local
+	t, err := time.ParseInLocation("2006-01-02", dateStr, loc)
+	if err != nil {
+		return "", fmt.Errorf("invalid date format %q, expected YYYY-MM-DD: %w", dateStr, err)
+	}
+	// Add 1 day and subtract 1 nanosecond to get end of day
+	endOfDay := t.AddDate(0, 0, 1).Add(-time.Nanosecond)
+	// Convert to UTC and format as RFC3339
+	return endOfDay.UTC().Format(time.RFC3339), nil
+}
 
 // ensureLocalSystem checks if the "local" system exists and creates it if not.
 // This allows local-only projects to be created without manual system setup.

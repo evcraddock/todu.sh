@@ -164,7 +164,7 @@ func init() {
 	taskListCmd.Flags().StringVar(&taskListUpdatedAfter, "updated-after", "", "Updated after date (YYYY-MM-DD)")
 	taskListCmd.Flags().IntVar(&taskListTemplateID, "template-id", 0, "Filter by recurring template ID")
 	taskListCmd.Flags().StringVar(&taskListScheduledDate, "scheduled-date", "", "Filter by scheduled date (YYYY-MM-DD)")
-	taskListCmd.Flags().IntVar(&taskListLimit, "limit", 50, "Limit number of results")
+	taskListCmd.Flags().IntVar(&taskListLimit, "limit", 0, "Limit number of results (0 = no limit)")
 
 	// Create flags
 	taskCreateCmd.Flags().StringVar(&taskCreateTitle, "title", "", "Task title (required)")
@@ -275,12 +275,20 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 		opts.ScheduledDate = taskListScheduledDate
 	}
 
-	// Set updated date filters
+	// Set updated date filters (convert local timezone to UTC)
 	if taskListUpdatedAfter != "" {
-		opts.UpdatedAfter = taskListUpdatedAfter
+		utcDate, err := parseDateToUTCStart(taskListUpdatedAfter)
+		if err != nil {
+			return err
+		}
+		opts.UpdatedAfter = utcDate
 	}
 	if taskListUpdatedBefore != "" {
-		opts.UpdatedBefore = taskListUpdatedBefore
+		utcDate, err := parseDateToUTCEnd(taskListUpdatedBefore)
+		if err != nil {
+			return err
+		}
+		opts.UpdatedBefore = utcDate
 	}
 
 	tasks, err := apiClient.ListTasks(ctx, opts)
@@ -370,16 +378,21 @@ func filterTasks(tasks []*types.Task) []*types.Task {
 			}
 		}
 
-		// Due date filters
+		// Due date filters (user input is local timezone, task.DueDate is UTC)
 		if taskListDueBefore != "" && task.DueDate != nil {
-			beforeDate, err := time.Parse("2006-01-02", taskListDueBefore)
-			if err == nil && task.DueDate.After(beforeDate) {
-				continue
+			// Parse user's date in local timezone, get end of that day, convert to UTC for comparison
+			beforeDate, err := time.ParseInLocation("2006-01-02", taskListDueBefore, time.Local)
+			if err == nil {
+				endOfDay := beforeDate.AddDate(0, 0, 1).Add(-time.Nanosecond)
+				if task.DueDate.After(endOfDay) {
+					continue
+				}
 			}
 		}
 
 		if taskListDueAfter != "" && task.DueDate != nil {
-			afterDate, err := time.Parse("2006-01-02", taskListDueAfter)
+			// Parse user's date in local timezone, get start of that day for comparison
+			afterDate, err := time.ParseInLocation("2006-01-02", taskListDueAfter, time.Local)
 			if err == nil && task.DueDate.Before(afterDate) {
 				continue
 			}
@@ -419,7 +432,7 @@ func displayTasksTable(ctx context.Context, apiClient *api.Client, tasks []*type
 
 		dueDate := ""
 		if task.DueDate != nil {
-			dueDate = task.DueDate.Format("2006-01-02")
+			dueDate = task.DueDate.Local().Format("2006-01-02")
 		}
 
 		// Use project name if available, otherwise fall back to ID
@@ -521,7 +534,7 @@ func displayTask(task *types.Task, comments []*types.Comment) {
 	}
 
 	if task.DueDate != nil {
-		fmt.Printf("Due Date:    %s\n", task.DueDate.Format("2006-01-02"))
+		fmt.Printf("Due Date:    %s\n", task.DueDate.Local().Format("2006-01-02"))
 	}
 
 	if task.TemplateID != nil {
@@ -530,11 +543,11 @@ func displayTask(task *types.Task, comments []*types.Comment) {
 	}
 
 	if task.ScheduledDate != nil {
-		fmt.Printf("Scheduled:   %s\n", task.ScheduledDate.Format("2006-01-02"))
+		fmt.Printf("Scheduled:   %s\n", task.ScheduledDate.Local().Format("2006-01-02"))
 	}
 
-	fmt.Printf("Created:     %s\n", task.CreatedAt.Format("2006-01-02 15:04:05"))
-	fmt.Printf("Updated:     %s\n", task.UpdatedAt.Format("2006-01-02 15:04:05"))
+	fmt.Printf("Created:     %s\n", task.CreatedAt.Local().Format("2006-01-02 15:04:05"))
+	fmt.Printf("Updated:     %s\n", task.UpdatedAt.Local().Format("2006-01-02 15:04:05"))
 
 	if task.Description != nil && *task.Description != "" {
 		fmt.Println()
@@ -567,7 +580,7 @@ func displayTask(task *types.Task, comments []*types.Comment) {
 		fmt.Printf("Comments (%d):\n", len(comments))
 		fmt.Println(strings.Repeat("-", 60))
 		for _, comment := range comments {
-			fmt.Printf("\n[%s] %s:\n", comment.CreatedAt.Format("2006-01-02 15:04"), comment.Author)
+			fmt.Printf("\n[%s] %s:\n", comment.CreatedAt.Local().Format("2006-01-02 15:04"), comment.Author)
 			fmt.Println(comment.Content)
 		}
 	}
@@ -886,7 +899,7 @@ func runTaskComment(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("Comment added to task #%d:\n", taskID)
-	fmt.Printf("[%s] %s:\n", comment.CreatedAt.Format("2006-01-02 15:04"), comment.Author)
+	fmt.Printf("[%s] %s:\n", comment.CreatedAt.Local().Format("2006-01-02 15:04"), comment.Author)
 	fmt.Println(comment.Content)
 	return nil
 }

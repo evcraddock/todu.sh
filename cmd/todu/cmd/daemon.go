@@ -257,7 +257,7 @@ func runDaemonStatus(cmd *cobra.Command, args []string) error {
 
 	if !status.LastSyncTime.IsZero() {
 		fmt.Printf("Last sync: %s (%s ago)\n",
-			status.LastSyncTime.Format("2006-01-02 15:04:05"),
+			status.LastSyncTime.Local().Format("2006-01-02 15:04:05"),
 			time.Since(status.LastSyncTime).Round(time.Second))
 	} else {
 		fmt.Println("Last sync: Never")
@@ -265,7 +265,7 @@ func runDaemonStatus(cmd *cobra.Command, args []string) error {
 
 	if !status.NextSyncTime.IsZero() {
 		fmt.Printf("Next sync: %s (in %s)\n",
-			status.NextSyncTime.Format("2006-01-02 15:04:05"),
+			status.NextSyncTime.Local().Format("2006-01-02 15:04:05"),
 			time.Until(status.NextSyncTime).Round(time.Second))
 	}
 

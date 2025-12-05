@@ -200,7 +200,7 @@ func runProjectList(cmd *cobra.Command, args []string) error {
 
 		lastSynced := "Never"
 		if project.LastSyncedAt != nil {
-			lastSynced = project.LastSyncedAt.Format("2006-01-02 15:04")
+			lastSynced = project.LastSyncedAt.Local().Format("2006-01-02 15:04")
 		}
 
 		priority := ""
@@ -371,8 +371,8 @@ func runProjectShow(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Priority: %s\n", *project.Priority)
 	}
 	fmt.Printf("Sync Strategy: %s\n", project.SyncStrategy)
-	fmt.Printf("\nCreated: %s\n", project.CreatedAt.Format("2006-01-02 15:04:05"))
-	fmt.Printf("Updated: %s\n", project.UpdatedAt.Format("2006-01-02 15:04:05"))
+	fmt.Printf("\nCreated: %s\n", project.CreatedAt.Local().Format("2006-01-02 15:04:05"))
+	fmt.Printf("Updated: %s\n", project.UpdatedAt.Local().Format("2006-01-02 15:04:05"))
 
 	return nil
 }
