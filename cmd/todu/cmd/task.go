@@ -100,6 +100,8 @@ var (
 	taskListSearch          string
 	taskListDueBefore       string
 	taskListDueAfter        string
+	taskListUpdatedBefore   string
+	taskListUpdatedAfter    string
 	taskListTemplateID      int
 	taskListScheduledDate   string
 	taskListLimit           int
@@ -158,6 +160,8 @@ func init() {
 	taskListCmd.Flags().StringVar(&taskListSearch, "search", "", "Full-text search")
 	taskListCmd.Flags().StringVar(&taskListDueBefore, "due-before", "", "Due before date (YYYY-MM-DD)")
 	taskListCmd.Flags().StringVar(&taskListDueAfter, "due-after", "", "Due after date (YYYY-MM-DD)")
+	taskListCmd.Flags().StringVar(&taskListUpdatedBefore, "updated-before", "", "Updated before date (YYYY-MM-DD)")
+	taskListCmd.Flags().StringVar(&taskListUpdatedAfter, "updated-after", "", "Updated after date (YYYY-MM-DD)")
 	taskListCmd.Flags().IntVar(&taskListTemplateID, "template-id", 0, "Filter by recurring template ID")
 	taskListCmd.Flags().StringVar(&taskListScheduledDate, "scheduled-date", "", "Filter by scheduled date (YYYY-MM-DD)")
 	taskListCmd.Flags().IntVar(&taskListLimit, "limit", 50, "Limit number of results")
@@ -269,6 +273,14 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 	// Set scheduled date filter
 	if taskListScheduledDate != "" {
 		opts.ScheduledDate = taskListScheduledDate
+	}
+
+	// Set updated date filters
+	if taskListUpdatedAfter != "" {
+		opts.UpdatedAfter = taskListUpdatedAfter
+	}
+	if taskListUpdatedBefore != "" {
+		opts.UpdatedBefore = taskListUpdatedBefore
 	}
 
 	tasks, err := apiClient.ListTasks(ctx, opts)

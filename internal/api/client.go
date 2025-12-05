@@ -279,6 +279,8 @@ type TaskListOptions struct {
 	ProjectPriority []string
 	TemplateID      *int
 	ScheduledDate   string
+	UpdatedAfter    string
+	UpdatedBefore   string
 	Limit           int
 }
 
@@ -311,6 +313,12 @@ func (c *Client) ListTasks(ctx context.Context, opts *TaskListOptions) ([]*types
 		}
 		if opts.ScheduledDate != "" {
 			path += fmt.Sprintf("scheduled_date=%s&", opts.ScheduledDate)
+		}
+		if opts.UpdatedAfter != "" {
+			path += fmt.Sprintf("updated_after=%s&", opts.UpdatedAfter)
+		}
+		if opts.UpdatedBefore != "" {
+			path += fmt.Sprintf("updated_before=%s&", opts.UpdatedBefore)
 		}
 		if opts.Limit > 0 {
 			path += fmt.Sprintf("limit=%d&", opts.Limit)
