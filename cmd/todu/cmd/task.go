@@ -171,7 +171,7 @@ func init() {
 	taskCreateCmd.Flags().StringVarP(&taskCreateProject, "project", "p", "", "Project ID or name (uses defaults.project if not specified)")
 	taskCreateCmd.Flags().StringVar(&taskCreateDescription, "description", "", "Task description")
 	taskCreateCmd.Flags().StringVar(&taskCreateStatus, "status", "active", "Task status")
-	taskCreateCmd.Flags().StringVar(&taskCreatePriority, "priority", "", "Task priority")
+	taskCreateCmd.Flags().StringVar(&taskCreatePriority, "priority", "medium", "Task priority")
 	taskCreateCmd.Flags().StringVar(&taskCreateDue, "due", "", "Due date (YYYY-MM-DD)")
 	taskCreateCmd.Flags().StringSliceVar(&taskCreateLabels, "label", []string{}, "Task label (repeatable)")
 	taskCreateCmd.Flags().StringSliceVar(&taskCreateAssignees, "assignee", []string{}, "Task assignee (repeatable)")
