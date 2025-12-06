@@ -432,7 +432,9 @@ func displayTasksTable(ctx context.Context, apiClient *api.Client, tasks []*type
 
 		dueDate := ""
 		if task.DueDate != nil {
-			dueDate = task.DueDate.Local().Format("2006-01-02")
+			// Use UTC for date-only fields to preserve the stored date
+			// (Local() would shift midnight UTC to previous day in western timezones)
+			dueDate = task.DueDate.UTC().Format("2006-01-02")
 		}
 
 		// Use project name if available, otherwise fall back to ID
@@ -534,7 +536,8 @@ func displayTask(task *types.Task, comments []*types.Comment) {
 	}
 
 	if task.DueDate != nil {
-		fmt.Printf("Due Date:    %s\n", task.DueDate.Local().Format("2006-01-02"))
+		// Use UTC for date-only fields to preserve the stored date
+		fmt.Printf("Due Date:    %s\n", task.DueDate.UTC().Format("2006-01-02"))
 	}
 
 	if task.TemplateID != nil {
@@ -543,7 +546,8 @@ func displayTask(task *types.Task, comments []*types.Comment) {
 	}
 
 	if task.ScheduledDate != nil {
-		fmt.Printf("Scheduled:   %s\n", task.ScheduledDate.Local().Format("2006-01-02"))
+		// Use UTC for date-only fields to preserve the stored date
+		fmt.Printf("Scheduled:   %s\n", task.ScheduledDate.UTC().Format("2006-01-02"))
 	}
 
 	fmt.Printf("Created:     %s\n", task.CreatedAt.Local().Format("2006-01-02 15:04:05"))
