@@ -61,6 +61,11 @@ This shows the effective configuration after merging:
 
 		// Defaults Configuration
 		fmt.Println("Defaults:")
+		if cfg.Author != "" {
+			fmt.Printf("  Author:  %s\n", cfg.Author)
+		} else {
+			fmt.Println("  Author:  (not set)")
+		}
 		if cfg.Defaults.Project != "" {
 			fmt.Printf("  Project: %s\n", cfg.Defaults.Project)
 		} else {
