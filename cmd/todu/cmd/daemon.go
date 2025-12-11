@@ -179,7 +179,14 @@ func runDaemonInstall(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to install service: %w", err)
 	}
 
-	fmt.Println("Daemon service installed and started successfully")
+	// Get home directory for env file path
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+	envPath := filepath.Join(homeDir, ".config", "todu", "env")
+
+	fmt.Println("Daemon service installed successfully")
 	fmt.Printf("Sync interval: %s\n", cfg.Daemon.Interval)
 	if len(cfg.Daemon.Projects) > 0 {
 		fmt.Printf("Syncing projects: %v\n", cfg.Daemon.Projects)
@@ -187,6 +194,23 @@ func runDaemonInstall(cmd *cobra.Command, args []string) error {
 		fmt.Println("Syncing all projects")
 	}
 	fmt.Println()
+
+	// Check if env file exists and inform user
+	if _, err := os.Stat(envPath); os.IsNotExist(err) {
+		fmt.Println("IMPORTANT: To sync with external systems (GitHub, Forgejo, etc.),")
+		fmt.Println("create an environment file with your plugin tokens:")
+		fmt.Println()
+		fmt.Printf("  %s\n", envPath)
+		fmt.Println()
+		fmt.Println("Example contents:")
+		fmt.Println("  TODU_PLUGIN_GITHUB_TOKEN=ghp_your_token_here")
+		fmt.Println("  TODU_PLUGIN_FORGEJO_TOKEN=your_token_here")
+		fmt.Println("  TODU_PLUGIN_FORGEJO_URL=https://your.forgejo.instance")
+		fmt.Println()
+		fmt.Println("Then restart the daemon: todu daemon restart")
+		fmt.Println()
+	}
+
 	fmt.Println("The daemon is now running in the background and will start automatically at login.")
 	fmt.Println()
 	fmt.Println("Useful commands:")

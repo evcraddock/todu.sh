@@ -23,6 +23,7 @@ StandardOutput=append:{{.LogPath}}
 StandardError=append:{{.LogPath}}
 WorkingDirectory={{.HomeDir}}
 Environment="HOME={{.HomeDir}}"
+EnvironmentFile=-{{.EnvPath}}
 
 [Install]
 WantedBy=default.target
@@ -74,14 +75,19 @@ func (s *linuxService) Install(cfg *config.Config) error {
 		return fmt.Errorf("failed to create log directory: %w", err)
 	}
 
+	// Environment file path for plugin tokens
+	envPath := filepath.Join(homeDir, ".config", "todu", "env")
+
 	data := struct {
 		ExecutablePath string
 		LogPath        string
 		HomeDir        string
+		EnvPath        string
 	}{
 		ExecutablePath: execPath,
 		LogPath:        logPath,
 		HomeDir:        homeDir,
+		EnvPath:        envPath,
 	}
 
 	// Parse and execute template
