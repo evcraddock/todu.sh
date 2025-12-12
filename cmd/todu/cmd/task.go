@@ -87,6 +87,18 @@ var taskDeleteCmd = &cobra.Command{
 	RunE:  runTaskDelete,
 }
 
+var taskMoveCmd = &cobra.Command{
+	Use:   "move <id>",
+	Short: "Move a task to a different project",
+	Long: `Move a task to a different project.
+
+This creates a new task in the target project with the same core fields
+(title, description, priority, labels, assignees, due date), adds linking
+comments to both tasks, and cancels the original task.`,
+	Args: cobra.ExactArgs(1),
+	RunE: runTaskMove,
+}
+
 var (
 	// List flags
 	taskListStatus          string
@@ -136,6 +148,9 @@ var (
 
 	// Delete flags
 	taskDeleteForce bool
+
+	// Move flags
+	taskMoveProject string
 )
 
 func init() {
@@ -196,6 +211,11 @@ func init() {
 
 	// Delete flags
 	taskDeleteCmd.Flags().BoolVarP(&taskDeleteForce, "force", "f", false, "Skip confirmation")
+
+	// Move command and flags
+	taskCmd.AddCommand(taskMoveCmd)
+	taskMoveCmd.Flags().StringVarP(&taskMoveProject, "project", "p", "", "Target project ID or name (required)")
+	taskMoveCmd.MarkFlagRequired("project")
 }
 
 func runTaskList(cmd *cobra.Command, args []string) error {
@@ -981,4 +1001,157 @@ func resolveProjectID(ctx context.Context, apiClient *api.Client, identifier str
 
 	// No match found
 	return 0, fmt.Errorf("project %q not found", identifier)
+}
+
+// getProjectURL constructs a URL for a project from its system URL and external ID.
+func getProjectURL(ctx context.Context, apiClient *api.Client, project *types.Project) string {
+	system, err := apiClient.GetSystem(ctx, project.SystemID)
+	if err != nil || system.URL == nil || *system.URL == "" {
+		return ""
+	}
+
+	// Construct URL: system URL + "/" + project external ID
+	systemURL := strings.TrimSuffix(*system.URL, "/")
+	return systemURL + "/" + project.ExternalID
+}
+
+func runTaskMove(cmd *cobra.Command, args []string) error {
+	cfg, err := loadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	if cfg.APIURL == "" {
+		return fmt.Errorf("API URL not configured")
+	}
+
+	taskID, err := strconv.Atoi(args[0])
+	if err != nil {
+		return fmt.Errorf("invalid task ID: %s", args[0])
+	}
+
+	apiClient := api.NewClient(cfg.APIURL)
+	ctx := context.Background()
+
+	// Get the source task
+	sourceTask, err := apiClient.GetTask(ctx, taskID)
+	if err != nil {
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+
+	// Resolve target project
+	targetProjectID, err := resolveProjectID(ctx, apiClient, taskMoveProject)
+	if err != nil {
+		return fmt.Errorf("failed to resolve target project: %w", err)
+	}
+
+	// Validate source and target projects are different
+	if sourceTask.ProjectID == targetProjectID {
+		return fmt.Errorf("task is already in the target project")
+	}
+
+	// Get target project for linking comment
+	targetProject, err := apiClient.GetProject(ctx, targetProjectID)
+	if err != nil {
+		return fmt.Errorf("failed to get target project: %w", err)
+	}
+
+	// Extract label names from source task
+	labelNames := make([]string, len(sourceTask.Labels))
+	for i, label := range sourceTask.Labels {
+		labelNames[i] = label.Name
+	}
+
+	// Extract assignee names from source task
+	assigneeNames := make([]string, len(sourceTask.Assignees))
+	for i, assignee := range sourceTask.Assignees {
+		assigneeNames[i] = assignee.Name
+	}
+
+	// Build TaskCreate for the new task
+	taskCreate := &types.TaskCreate{
+		Title:     sourceTask.Title,
+		ProjectID: targetProjectID,
+		Status:    "active",
+	}
+
+	if sourceTask.Description != nil {
+		taskCreate.Description = sourceTask.Description
+	}
+
+	if sourceTask.Priority != nil {
+		taskCreate.Priority = sourceTask.Priority
+	}
+
+	if sourceTask.DueDate != nil {
+		taskCreate.DueDate = sourceTask.DueDate
+	}
+
+	if len(labelNames) > 0 {
+		taskCreate.Labels = labelNames
+	}
+
+	if len(assigneeNames) > 0 {
+		taskCreate.Assignees = assigneeNames
+	}
+
+	// Create the new task
+	newTask, err := apiClient.CreateTask(ctx, taskCreate)
+	if err != nil {
+		return fmt.Errorf("failed to create new task: %w", err)
+	}
+
+	// Add comment to new task: "Moved from task #X (URL)"
+	newTaskComment := fmt.Sprintf("Moved from task #%d", sourceTask.ID)
+	if sourceTask.SourceURL != nil && *sourceTask.SourceURL != "" {
+		newTaskComment = fmt.Sprintf("Moved from task #%d (%s)", sourceTask.ID, *sourceTask.SourceURL)
+	}
+
+	newTaskCommentCreate := &types.CommentCreate{
+		TaskID:  &newTask.ID,
+		Content: newTaskComment,
+		Author:  "system",
+	}
+
+	_, err = apiClient.CreateComment(ctx, newTaskCommentCreate)
+	if err != nil {
+		// Log but don't fail - the task was created successfully
+		fmt.Printf("Warning: failed to add comment to new task: %v\n", err)
+	}
+
+	// Add comment to old task: "Moved to task #Y in [project_name](project_url)"
+	projectURL := getProjectURL(ctx, apiClient, targetProject)
+	var oldTaskComment string
+	if projectURL != "" {
+		oldTaskComment = fmt.Sprintf("Moved to task #%d in [%s](%s)", newTask.ID, targetProject.Name, projectURL)
+	} else {
+		oldTaskComment = fmt.Sprintf("Moved to task #%d in %s", newTask.ID, targetProject.Name)
+	}
+
+	oldTaskCommentCreate := &types.CommentCreate{
+		TaskID:  &sourceTask.ID,
+		Content: oldTaskComment,
+		Author:  "system",
+	}
+
+	_, err = apiClient.CreateComment(ctx, oldTaskCommentCreate)
+	if err != nil {
+		// Log but don't fail - the task was created successfully
+		fmt.Printf("Warning: failed to add comment to old task: %v\n", err)
+	}
+
+	// Cancel the old task
+	canceledStatus := "canceled"
+	taskUpdate := &types.TaskUpdate{
+		Status: &canceledStatus,
+	}
+
+	_, err = apiClient.UpdateTask(ctx, sourceTask.ID, taskUpdate)
+	if err != nil {
+		return fmt.Errorf("failed to cancel old task: %w", err)
+	}
+
+	fmt.Printf("Task #%d moved to project %s as task #%d\n", sourceTask.ID, targetProject.Name, newTask.ID)
+	fmt.Printf("Old task #%d has been canceled\n", sourceTask.ID)
+	return nil
 }
