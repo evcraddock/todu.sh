@@ -634,10 +634,10 @@ func (c *Client) DeleteTemplate(ctx context.Context, id int) error {
 // TemplateProcessDetail represents details about a single template processing result
 type TemplateProcessDetail struct {
 	TemplateID int    `json:"template_id"`
-	Action     string `json:"action"`   // "created", "skipped", or "failed"
-	TaskID     *int   `json:"task_id"`  // only if action == "created"
-	Reason     string `json:"reason"`   // only if action == "skipped"
-	Error      string `json:"error"`    // only if action == "failed"
+	Action     string `json:"action"`  // "created", "skipped", or "failed"
+	TaskID     *int   `json:"task_id"` // only if action == "created"
+	Reason     string `json:"reason"`  // only if action == "skipped"
+	Error      string `json:"error"`   // only if action == "failed"
 }
 
 // ProcessDueTemplatesResponse represents the response from processing due templates

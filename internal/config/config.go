@@ -10,13 +10,13 @@ import (
 
 // Config represents the main configuration structure
 type Config struct {
-	APIURL         string                 `mapstructure:"api_url"`
-	Author         string                 `mapstructure:"author"`
-	LocalReports   string                 `mapstructure:"local_reports"`
-	Daemon         DaemonConfig           `mapstructure:"daemon"`
-	Output         OutputConfig           `mapstructure:"output"`
-	Defaults       DefaultsConfig         `mapstructure:"defaults"`
-	RecurringTasks RecurringTasksConfig   `mapstructure:"recurring_tasks"`
+	APIURL         string               `mapstructure:"api_url"`
+	Author         string               `mapstructure:"author"`
+	LocalReports   string               `mapstructure:"local_reports"`
+	Daemon         DaemonConfig         `mapstructure:"daemon"`
+	Output         OutputConfig         `mapstructure:"output"`
+	Defaults       DefaultsConfig       `mapstructure:"defaults"`
+	RecurringTasks RecurringTasksConfig `mapstructure:"recurring_tasks"`
 }
 
 // DefaultsConfig contains default values for commands
@@ -26,12 +26,12 @@ type DefaultsConfig struct {
 
 // DaemonConfig contains daemon-specific settings
 type DaemonConfig struct {
-	Interval       string `mapstructure:"interval"`
-	Projects       []int  `mapstructure:"projects"`
-	LogLevel       string `mapstructure:"log_level"`
-	LogMaxSizeMB   int    `mapstructure:"log_max_size_mb"`
-	LogMaxBackups  int    `mapstructure:"log_max_backups"`
-	LogMaxAgeDays  int    `mapstructure:"log_max_age_days"`
+	Interval      string `mapstructure:"interval"`
+	Projects      []int  `mapstructure:"projects"`
+	LogLevel      string `mapstructure:"log_level"`
+	LogMaxSizeMB  int    `mapstructure:"log_max_size_mb"`
+	LogMaxBackups int    `mapstructure:"log_max_backups"`
+	LogMaxAgeDays int    `mapstructure:"log_max_age_days"`
 }
 
 // RecurringTasksConfig contains recurring task processing settings

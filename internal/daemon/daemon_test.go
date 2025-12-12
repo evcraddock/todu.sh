@@ -42,9 +42,9 @@ func (m *mockEngine) Sync(ctx context.Context, options sync.Options) (*sync.Resu
 
 // mockAPIClient is a mock API client for testing
 type mockAPIClient struct {
-	processCount  int
-	shouldFail    bool
-	tasksCreated  int
+	processCount     int
+	shouldFail       bool
+	tasksCreated     int
 	templatesSkipped int
 }
 

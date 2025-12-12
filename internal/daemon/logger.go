@@ -30,10 +30,10 @@ func setupLogger(cfg *config.Config) (zerolog.Logger, error) {
 	// Set up log rotation
 	fileWriter := &lumberjack.Logger{
 		Filename:   logPath,
-		MaxSize:    cfg.Daemon.LogMaxSizeMB,   // megabytes
-		MaxBackups: cfg.Daemon.LogMaxBackups,  // number of old files to keep
-		MaxAge:     cfg.Daemon.LogMaxAgeDays,  // days
-		Compress:   false,                     // don't compress old logs
+		MaxSize:    cfg.Daemon.LogMaxSizeMB,  // megabytes
+		MaxBackups: cfg.Daemon.LogMaxBackups, // number of old files to keep
+		MaxAge:     cfg.Daemon.LogMaxAgeDays, // days
+		Compress:   false,                    // don't compress old logs
 	}
 
 	// Parse log level

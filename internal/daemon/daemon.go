@@ -60,7 +60,9 @@ func New(engine SyncEngine, apiClient APIClient, config *config.Config) *Daemon 
 	}
 
 	// If the engine supports WithLogger, set the logger on it
-	if e, ok := engine.(interface{ WithLogger(zerolog.Logger) *sync.Engine }); ok {
+	if e, ok := engine.(interface {
+		WithLogger(zerolog.Logger) *sync.Engine
+	}); ok {
 		e.WithLogger(logger)
 	}
 
