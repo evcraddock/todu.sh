@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -80,6 +81,19 @@ var journalSearchCmd = &cobra.Command{
 	RunE:  runJournalSearch,
 }
 
+var journalExportCmd = &cobra.Command{
+	Use:   "export",
+	Short: "Export daily journal to markdown file",
+	Long: `Export journal entries, completed tasks, and habits for a day to a markdown file.
+
+The file is saved to {local_reports}/YYYY/MM-Monthname/MM-DD-YYYY-journal.md
+
+Example:
+  todu journal export              # Export today's journal
+  todu journal export --date 2025-12-11  # Export specific date`,
+	RunE: runJournalExport,
+}
+
 var (
 	// Add flags
 	journalAddAuthor string
@@ -93,6 +107,9 @@ var (
 
 	// Delete flags
 	journalDeleteForce bool
+
+	// Export flags
+	journalExportDate string
 )
 
 func init() {
@@ -103,6 +120,7 @@ func init() {
 	journalCmd.AddCommand(journalEditCmd)
 	journalCmd.AddCommand(journalDeleteCmd)
 	journalCmd.AddCommand(journalSearchCmd)
+	journalCmd.AddCommand(journalExportCmd)
 
 	// Add flags
 	journalAddCmd.Flags().StringVar(&journalAddAuthor, "author", "", "Entry author (defaults to config/git user)")
@@ -116,6 +134,9 @@ func init() {
 
 	// Delete flags
 	journalDeleteCmd.Flags().BoolVarP(&journalDeleteForce, "force", "f", false, "Skip confirmation")
+
+	// Export flags
+	journalExportCmd.Flags().StringVar(&journalExportDate, "date", "", "Date to export (YYYY-MM-DD, defaults to today)")
 }
 
 func runJournalAdd(cmd *cobra.Command, args []string) error {
@@ -521,4 +542,193 @@ func getGitUser() string {
 		return ""
 	}
 	return strings.TrimSpace(string(output))
+}
+
+func runJournalExport(cmd *cobra.Command, args []string) error {
+	cfg, err := loadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	if cfg.APIURL == "" {
+		return fmt.Errorf("API URL not configured")
+	}
+
+	if cfg.LocalReports == "" {
+		return fmt.Errorf("local_reports path not configured")
+	}
+
+	// Parse target date (default to today)
+	targetDate := time.Now()
+	if journalExportDate != "" {
+		parsed, err := time.ParseInLocation("2006-01-02", journalExportDate, time.Local)
+		if err != nil {
+			return fmt.Errorf("invalid date format: %s (expected YYYY-MM-DD)", journalExportDate)
+		}
+		targetDate = parsed
+	}
+
+	apiClient := api.NewClient(cfg.APIURL)
+	ctx := context.Background()
+
+	// Fetch all data in parallel
+	journals, err := apiClient.ListJournals(ctx, 0, 100)
+	if err != nil {
+		return fmt.Errorf("failed to fetch journal entries: %w", err)
+	}
+
+	// Filter journals to target date
+	var dayJournals []*types.Comment
+	for _, j := range journals {
+		if isSameDay(j.CreatedAt.Local(), targetDate) {
+			dayJournals = append(dayJournals, j)
+		}
+	}
+
+	// Fetch completed tasks for the day
+	dateStr := targetDate.Format("2006-01-02")
+	tasks, err := apiClient.ListTasks(ctx, &api.TaskListOptions{
+		Status:       "done",
+		UpdatedAfter: dateStr,
+		Limit:        500,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to fetch tasks: %w", err)
+	}
+
+	// Filter tasks to only those updated on the target date
+	var completedTasks []*types.Task
+	for _, t := range tasks {
+		if isSameDay(t.UpdatedAt.Local(), targetDate) {
+			completedTasks = append(completedTasks, t)
+		}
+	}
+
+	// Fetch habit templates
+	habits, err := apiClient.ListTemplates(ctx, &api.TemplateListOptions{
+		TemplateType: "habit",
+		Limit:        100,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to fetch habits: %w", err)
+	}
+
+	// Fetch projects for name lookup
+	projects, err := apiClient.ListProjects(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to fetch projects: %w", err)
+	}
+	projectMap := make(map[int]string)
+	for _, p := range projects {
+		projectMap[p.ID] = p.Name
+	}
+
+	// Build habit template ID set and completion map
+	habitTemplateIDs := make(map[int]bool)
+	for _, h := range habits {
+		habitTemplateIDs[h.ID] = true
+	}
+
+	habitCompleted := make(map[int]bool)
+	for _, t := range completedTasks {
+		if t.TemplateID != nil && habitTemplateIDs[*t.TemplateID] {
+			habitCompleted[*t.TemplateID] = true
+		}
+	}
+
+	// Generate markdown content
+	var sb strings.Builder
+	dateFormatted := targetDate.Format("01-02-2006")
+
+	sb.WriteString(fmt.Sprintf("# %s Journal\n\n", dateFormatted))
+
+	// Journal entries section
+	for _, j := range dayJournals {
+		// Get timezone abbreviation
+		_, offset := j.CreatedAt.Local().Zone()
+		tz := formatTimezone(offset)
+		timeStr := j.CreatedAt.Local().Format("15:04")
+		sb.WriteString(fmt.Sprintf("- #### time: %s %s\n", timeStr, tz))
+		sb.WriteString(fmt.Sprintf("%s\n\n", j.Content))
+	}
+
+	// Completed Today section (exclude habit tasks)
+	sb.WriteString("## Completed Today\n")
+	for _, t := range completedTasks {
+		// Skip tasks that are from habit templates
+		if t.TemplateID != nil && habitTemplateIDs[*t.TemplateID] {
+			continue
+		}
+		projectName := projectMap[t.ProjectID]
+		priority := "medium"
+		if t.Priority != nil {
+			priority = *t.Priority
+		}
+		sb.WriteString(fmt.Sprintf("- [x] %s - %s priority:: %s\n", t.Title, projectName, priority))
+	}
+	sb.WriteString("\n")
+
+	// Habits section
+	sb.WriteString("### Habits\n")
+	for _, h := range habits {
+		projectName := projectMap[h.ProjectID]
+		completed := habitCompleted[h.ID]
+		sb.WriteString(fmt.Sprintf("- %s - %s:: %t\n", projectName, h.Title, completed))
+	}
+
+	// Build output path
+	localReports := expandPath(cfg.LocalReports)
+	year := targetDate.Format("2006")
+	monthDir := targetDate.Format("01-January")
+	fileName := targetDate.Format("01-02-2006") + "-journal.md"
+
+	outputDir := filepath.Join(localReports, "reviews", year, monthDir)
+	outputPath := filepath.Join(outputDir, fileName)
+
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", outputDir, err)
+	}
+
+	// Write file
+	if err := os.WriteFile(outputPath, []byte(sb.String()), 0644); err != nil {
+		return fmt.Errorf("failed to write file %s: %w", outputPath, err)
+	}
+
+	fmt.Printf("Journal exported to: %s\n", outputPath)
+	return nil
+}
+
+// formatTimezone returns a two-letter timezone abbreviation
+func formatTimezone(offsetSeconds int) string {
+	hours := offsetSeconds / 3600
+	switch hours {
+	case -5:
+		return "CT"
+	case -6:
+		return "CT"
+	case -8:
+		return "PT"
+	case -7:
+		return "MT"
+	case 0:
+		return "UTC"
+	default:
+		if hours >= 0 {
+			return fmt.Sprintf("+%d", hours)
+		}
+		return fmt.Sprintf("%d", hours)
+	}
+}
+
+// expandPath expands ~ to home directory
+func expandPath(path string) string {
+	if strings.HasPrefix(path, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return path
+		}
+		return filepath.Join(home, path[2:])
+	}
+	return path
 }
