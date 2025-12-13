@@ -1,4 +1,4 @@
-package cmd
+package journal
 
 import (
 	"os"
@@ -19,11 +19,12 @@ func TestFormatTimezone(t *testing.T) {
 		{"Central Time", -6 * 3600, "CT"},
 		{"Mountain Time", -7 * 3600, "MT"},
 		{"Pacific Time", -8 * 3600, "PT"},
-		{"UTC", 0, "UTC"},
-		{"Positive offset +5", 5 * 3600, "UTC+5"},
-		{"Positive offset +9", 9 * 3600, "UTC+9"},
-		{"Negative offset -9", -9 * 3600, "UTC-9"},
-		{"Negative offset -3", -3 * 3600, "UTC-3"},
+		{"Atlantic Time", -4 * 3600, "AT"},
+		{"Positive offset +5", 5 * 3600, "+0500"},
+		{"Positive offset +9", 9 * 3600, "+0900"},
+		{"Negative offset -9", -9 * 3600, "-0900"},
+		{"Negative offset -3", -3 * 3600, "-0300"},
+		{"UTC", 0, "+0000"},
 	}
 
 	for _, tt := range tests {
@@ -281,8 +282,8 @@ func TestEscapeMarkdown(t *testing.T) {
 	}
 }
 
-func TestGenerateExportMarkdown_Empty(t *testing.T) {
-	data := &journalExportData{
+func TestGenerateMarkdown_Empty(t *testing.T) {
+	data := &exportData{
 		targetDate:     time.Date(2025, 12, 13, 0, 0, 0, 0, time.Local),
 		journals:       nil,
 		completedTasks: nil,
@@ -291,7 +292,7 @@ func TestGenerateExportMarkdown_Empty(t *testing.T) {
 		habitTasks:     make(map[int]habitTaskInfo),
 	}
 
-	result := generateExportMarkdown(data)
+	result := generateMarkdown(data)
 
 	// Check header
 	if !contains(result, "# 12-13-2025 Journal") {
@@ -309,11 +310,11 @@ func TestGenerateExportMarkdown_Empty(t *testing.T) {
 	}
 }
 
-func TestGenerateExportMarkdown_WithData(t *testing.T) {
+func TestGenerateMarkdown_WithData(t *testing.T) {
 	priority := "high"
 	templateID := 1
 
-	data := &journalExportData{
+	data := &exportData{
 		targetDate: time.Date(2025, 12, 13, 12, 0, 0, 0, time.Local),
 		journals: []*types.Comment{
 			{ID: 1, Content: "Test journal entry", CreatedAt: time.Date(2025, 12, 13, 10, 30, 0, 0, time.Local)},
@@ -338,7 +339,7 @@ func TestGenerateExportMarkdown_WithData(t *testing.T) {
 	// Set templateID for the completed task (not a habit)
 	data.completedTasks[0].TemplateID = nil
 
-	result := generateExportMarkdown(data)
+	result := generateMarkdown(data)
 
 	// Check journal entry
 	if !contains(result, "Test journal entry") {
@@ -369,7 +370,7 @@ func TestGenerateExportMarkdown_WithData(t *testing.T) {
 		Priority:   &priority,
 	})
 
-	result2 := generateExportMarkdown(data)
+	result2 := generateMarkdown(data)
 	// The habit task should NOT appear in completed section
 	if contains(result2, "#201") {
 		t.Errorf("Habit task should not appear in completed section")
@@ -378,10 +379,6 @@ func TestGenerateExportMarkdown_WithData(t *testing.T) {
 
 // Helper function for string contains check
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
-}
-
-func containsHelper(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {
 		if s[i:i+len(substr)] == substr {
 			return true

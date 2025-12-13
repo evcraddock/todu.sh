@@ -15,6 +15,7 @@ import (
 
 	"github.com/evcraddock/todu.sh/internal/api"
 	"github.com/evcraddock/todu.sh/internal/config"
+	"github.com/evcraddock/todu.sh/internal/journal"
 	"github.com/evcraddock/todu.sh/internal/sync"
 )
 
@@ -40,13 +41,14 @@ type APIClient interface {
 
 // Daemon manages background synchronization
 type Daemon struct {
-	engine    SyncEngine
-	apiClient APIClient
-	config    *config.Config
-	logger    zerolog.Logger
-	stopChan  chan struct{}
-	doneChan  chan struct{}
-	status    Status
+	engine        SyncEngine
+	apiClient     APIClient
+	fullAPIClient *api.Client
+	config        *config.Config
+	logger        zerolog.Logger
+	stopChan      chan struct{}
+	doneChan      chan struct{}
+	status        Status
 }
 
 // New creates a new Daemon instance
@@ -66,7 +68,7 @@ func New(engine SyncEngine, apiClient APIClient, config *config.Config) *Daemon 
 		e.WithLogger(logger)
 	}
 
-	return &Daemon{
+	d := &Daemon{
 		engine:    engine,
 		apiClient: apiClient,
 		config:    config,
@@ -77,6 +79,13 @@ func New(engine SyncEngine, apiClient APIClient, config *config.Config) *Daemon 
 			Running: false,
 		},
 	}
+
+	// If the apiClient is a full API client, store it for journal export
+	if fullClient, ok := apiClient.(*api.Client); ok {
+		d.fullAPIClient = fullClient
+	}
+
+	return d
 }
 
 // Start begins the daemon main loop
@@ -181,8 +190,14 @@ func (d *Daemon) stop() {
 // runSync executes a single sync operation
 func (d *Daemon) runSync(ctx context.Context) error {
 	d.logger.Info().Msg("Starting sync...")
+	previousSyncTime := d.status.LastSyncTime
 	d.status.LastSyncTime = time.Now()
 	d.status.LastSyncError = ""
+
+	// Check if this is a new day - if so, export yesterday's journal
+	if d.isNewDay(previousSyncTime) {
+		d.exportYesterdayJournal(ctx)
+	}
 
 	// Build sync options
 	options := sync.Options{
@@ -360,4 +375,42 @@ func ReadStatus() (*Status, error) {
 	}
 
 	return &status, nil
+}
+
+// isNewDay checks if the current sync is on a different day than the previous sync
+func (d *Daemon) isNewDay(previousSyncTime time.Time) bool {
+	// If this is the first sync ever, consider it a new day
+	if previousSyncTime.IsZero() {
+		return true
+	}
+
+	now := time.Now()
+	prevYear, prevMonth, prevDay := previousSyncTime.Local().Date()
+	nowYear, nowMonth, nowDay := now.Local().Date()
+
+	return prevYear != nowYear || prevMonth != nowMonth || prevDay != nowDay
+}
+
+// exportYesterdayJournal exports the previous day's journal to a markdown file
+func (d *Daemon) exportYesterdayJournal(ctx context.Context) {
+	if d.fullAPIClient == nil {
+		d.logger.Debug().Msg("Skipping journal export: full API client not available")
+		return
+	}
+
+	if d.config.LocalReports == "" {
+		d.logger.Debug().Msg("Skipping journal export: local_reports path not configured")
+		return
+	}
+
+	yesterday := time.Now().AddDate(0, 0, -1)
+	d.logger.Info().Time("date", yesterday).Msg("Exporting previous day's journal")
+
+	outputPath, err := journal.Export(ctx, d.fullAPIClient, yesterday, d.config.LocalReports)
+	if err != nil {
+		d.logger.Warn().Err(err).Msg("Failed to export journal")
+		return
+	}
+
+	d.logger.Info().Str("path", outputPath).Msg("Journal exported successfully")
 }
