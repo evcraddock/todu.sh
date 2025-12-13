@@ -623,16 +623,35 @@ func runJournalExport(cmd *cobra.Command, args []string) error {
 		projectMap[p.ID] = p.Name
 	}
 
-	// Build habit template ID set and completion map
+	// Build habit template ID set
 	habitTemplateIDs := make(map[int]bool)
 	for _, h := range habits {
 		habitTemplateIDs[h.ID] = true
 	}
 
-	habitCompleted := make(map[int]bool)
-	for _, t := range completedTasks {
+	// Fetch all tasks for the day (any status) to find habit tasks
+	allTasks, err := apiClient.ListTasks(ctx, &api.TaskListOptions{
+		UpdatedAfter: dateStr,
+		Limit:        500,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to fetch all tasks: %w", err)
+	}
+
+	// Build habit task map: template ID -> (task ID, completed)
+	type habitTaskInfo struct {
+		taskID    int
+		completed bool
+	}
+	habitTasks := make(map[int]habitTaskInfo)
+	for _, t := range allTasks {
 		if t.TemplateID != nil && habitTemplateIDs[*t.TemplateID] {
-			habitCompleted[*t.TemplateID] = true
+			if isSameDay(t.UpdatedAt.Local(), targetDate) {
+				habitTasks[*t.TemplateID] = habitTaskInfo{
+					taskID:    t.ID,
+					completed: t.Status == "done",
+				}
+			}
 		}
 	}
 
@@ -654,26 +673,38 @@ func runJournalExport(cmd *cobra.Command, args []string) error {
 
 	// Completed Today section (exclude habit tasks)
 	sb.WriteString("## Completed Today\n")
+	hasCompletedTasks := false
 	for _, t := range completedTasks {
 		// Skip tasks that are from habit templates
 		if t.TemplateID != nil && habitTemplateIDs[*t.TemplateID] {
 			continue
 		}
+		hasCompletedTasks = true
 		projectName := projectMap[t.ProjectID]
 		priority := "medium"
 		if t.Priority != nil {
 			priority = *t.Priority
 		}
-		sb.WriteString(fmt.Sprintf("- [x] %s - %s priority:: %s\n", t.Title, projectName, priority))
+		sb.WriteString(fmt.Sprintf("- [x] #%d %s - %s priority:: %s\n", t.ID, t.Title, projectName, priority))
+	}
+	if !hasCompletedTasks {
+		sb.WriteString("No Tasks\n")
 	}
 	sb.WriteString("\n")
 
 	// Habits section
 	sb.WriteString("### Habits\n")
-	for _, h := range habits {
-		projectName := projectMap[h.ProjectID]
-		completed := habitCompleted[h.ID]
-		sb.WriteString(fmt.Sprintf("- %s - %s:: %t\n", projectName, h.Title, completed))
+	if len(habits) == 0 {
+		sb.WriteString("No Habits\n")
+	} else {
+		for _, h := range habits {
+			projectName := projectMap[h.ProjectID]
+			if info, hasTask := habitTasks[h.ID]; hasTask {
+				sb.WriteString(fmt.Sprintf("- #%d %s - %s:: %t\n", info.taskID, projectName, h.Title, info.completed))
+			} else {
+				sb.WriteString(fmt.Sprintf("- %s - %s:: false\n", projectName, h.Title))
+			}
+		}
 	}
 
 	// Build output path
