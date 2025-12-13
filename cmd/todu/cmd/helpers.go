@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -153,4 +155,38 @@ func ensureDefaultProject(ctx context.Context, client *api.Client, projectName s
 
 	fmt.Printf("Auto-created default project %q (ID: %d)\n", project.Name, project.ID)
 	return project.ID, nil
+}
+
+// expandPath expands ~ to the user's home directory
+func expandPath(path string) string {
+	if strings.HasPrefix(path, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return path
+		}
+		return filepath.Join(home, path[2:])
+	}
+	return path
+}
+
+// formatTimezone returns a timezone abbreviation based on UTC offset
+func formatTimezone(offsetSeconds int) string {
+	hours := offsetSeconds / 3600
+	switch hours {
+	case -5:
+		return "ET" // Eastern Time (EST/EDT)
+	case -6:
+		return "CT" // Central Time (CST/CDT)
+	case -7:
+		return "MT" // Mountain Time (MST/MDT)
+	case -8:
+		return "PT" // Pacific Time (PST/PDT)
+	case 0:
+		return "UTC"
+	default:
+		if hours >= 0 {
+			return fmt.Sprintf("UTC+%d", hours)
+		}
+		return fmt.Sprintf("UTC%d", hours)
+	}
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/evcraddock/todu.sh/internal/config"
 	"github.com/evcraddock/todu.sh/pkg/types"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 )
 
 var journalCmd = &cobra.Command{
@@ -544,7 +545,249 @@ func getGitUser() string {
 	return strings.TrimSpace(string(output))
 }
 
+// Export constants
+const (
+	// maxJournalLimit is the maximum number of journal entries to fetch
+	maxJournalLimit = 100
+
+	// maxTaskLimit is the maximum number of tasks to fetch per query
+	maxTaskLimit = 500
+
+	// maxHabitLimit is the maximum number of habit templates to fetch
+	maxHabitLimit = 100
+
+	// exportAPITimeout is the timeout for all export API calls
+	exportAPITimeout = 30 * time.Second
+)
+
+// habitTaskInfo holds task information for a habit on a specific day
+type habitTaskInfo struct {
+	taskID    int
+	completed bool
+}
+
+// journalExportData holds all data needed for export
+type journalExportData struct {
+	targetDate     time.Time
+	journals       []*types.Comment
+	completedTasks []*types.Task
+	habits         []*types.RecurringTaskTemplate
+	projectMap     map[int]string
+	habitTasks     map[int]habitTaskInfo
+}
+
+// exportAPIResults holds the raw results from all API calls
+type exportAPIResults struct {
+	journals       []*types.Comment
+	doneTasks      []*types.Task
+	habits         []*types.RecurringTaskTemplate
+	projects       []*types.Project
+	scheduledTasks []*types.Task
+}
+
+// fetchExportData fetches all data needed for export in parallel
+func fetchExportData(ctx context.Context, client *api.Client, dateStr string) (*exportAPIResults, error) {
+	ctx, cancel := context.WithTimeout(ctx, exportAPITimeout)
+	defer cancel()
+
+	g, ctx := errgroup.WithContext(ctx)
+	results := &exportAPIResults{}
+
+	// 1. Fetch journals
+	g.Go(func() error {
+		var err error
+		results.journals, err = client.ListJournals(ctx, 0, maxJournalLimit)
+		return err
+	})
+
+	// 2. Fetch completed tasks
+	g.Go(func() error {
+		var err error
+		results.doneTasks, err = client.ListTasks(ctx, &api.TaskListOptions{
+			Status:       "done",
+			UpdatedAfter: dateStr,
+			Limit:        maxTaskLimit,
+		})
+		return err
+	})
+
+	// 3. Fetch habit templates
+	g.Go(func() error {
+		var err error
+		results.habits, err = client.ListTemplates(ctx, &api.TemplateListOptions{
+			TemplateType: "habit",
+			Limit:        maxHabitLimit,
+		})
+		return err
+	})
+
+	// 4. Fetch projects
+	g.Go(func() error {
+		var err error
+		results.projects, err = client.ListProjects(ctx, nil)
+		return err
+	})
+
+	// 5. Fetch scheduled tasks
+	g.Go(func() error {
+		var err error
+		results.scheduledTasks, err = client.ListTasks(ctx, &api.TaskListOptions{
+			ScheduledDate: dateStr,
+			Limit:         maxTaskLimit,
+		})
+		return err
+	})
+
+	if err := g.Wait(); err != nil {
+		return nil, fmt.Errorf("failed to fetch export data: %w", err)
+	}
+
+	return results, nil
+}
+
+// buildProjectMap creates a map from project ID to project name
+func buildProjectMap(projects []*types.Project) map[int]string {
+	projectMap := make(map[int]string)
+	for _, p := range projects {
+		projectMap[p.ID] = p.Name
+	}
+	return projectMap
+}
+
+// buildHabitTemplateSet creates a set of habit template IDs
+func buildHabitTemplateSet(habits []*types.RecurringTaskTemplate) map[int]struct{} {
+	habitTemplateIDs := make(map[int]struct{})
+	for _, h := range habits {
+		habitTemplateIDs[h.ID] = struct{}{}
+	}
+	return habitTemplateIDs
+}
+
+// buildHabitTaskMap creates a map from template ID to task info for scheduled habit tasks
+func buildHabitTaskMap(scheduledTasks []*types.Task, habitTemplateIDs map[int]struct{}) map[int]habitTaskInfo {
+	habitTasks := make(map[int]habitTaskInfo)
+	for _, t := range scheduledTasks {
+		if t.TemplateID != nil {
+			if _, isHabit := habitTemplateIDs[*t.TemplateID]; isHabit {
+				habitTasks[*t.TemplateID] = habitTaskInfo{
+					taskID:    t.ID,
+					completed: t.Status == "done",
+				}
+			}
+		}
+	}
+	return habitTasks
+}
+
+// filterJournalsByTargetDate filters journals to only those created on the target date
+func filterJournalsByTargetDate(journals []*types.Comment, targetDate time.Time) []*types.Comment {
+	var filtered []*types.Comment
+	for _, j := range journals {
+		if isSameDay(j.CreatedAt.Local(), targetDate) {
+			filtered = append(filtered, j)
+		}
+	}
+	return filtered
+}
+
+// filterTasksByTargetDate filters tasks to only those updated on the target date
+func filterTasksByTargetDate(tasks []*types.Task, targetDate time.Time) []*types.Task {
+	var filtered []*types.Task
+	for _, t := range tasks {
+		if isSameDay(t.UpdatedAt.Local(), targetDate) {
+			filtered = append(filtered, t)
+		}
+	}
+	return filtered
+}
+
+// buildExportPath constructs the output file path for the export
+func buildExportPath(localReports string, targetDate time.Time) string {
+	year := targetDate.Format("2006")
+	monthDir := targetDate.Format("01-January")
+	fileName := targetDate.Format("01-02-2006") + "-journal.md"
+	return filepath.Join(localReports, "reviews", year, monthDir, fileName)
+}
+
+// escapeMarkdown escapes special markdown characters in text
+func escapeMarkdown(s string) string {
+	replacer := strings.NewReplacer(
+		`\`, `\\`,
+		`*`, `\*`,
+		`_`, `\_`,
+		`[`, `\[`,
+		`]`, `\]`,
+		`#`, `\#`,
+		`|`, `\|`,
+		"`", "\\`",
+	)
+	return replacer.Replace(s)
+}
+
+// generateExportMarkdown generates the markdown content for the journal export
+func generateExportMarkdown(data *journalExportData) string {
+	var sb strings.Builder
+	dateFormatted := data.targetDate.Format("01-02-2006")
+
+	sb.WriteString(fmt.Sprintf("# %s Journal\n\n", dateFormatted))
+
+	// Journal entries section
+	for _, j := range data.journals {
+		_, offset := j.CreatedAt.Local().Zone()
+		tz := formatTimezone(offset)
+		timeStr := j.CreatedAt.Local().Format("15:04")
+		sb.WriteString(fmt.Sprintf("- #### time: %s %s\n", timeStr, tz))
+		sb.WriteString(fmt.Sprintf("%s\n\n", j.Content))
+	}
+
+	// Completed Today section (exclude habit tasks)
+	sb.WriteString("## Completed Today\n")
+	habitTemplateIDs := make(map[int]struct{})
+	for _, h := range data.habits {
+		habitTemplateIDs[h.ID] = struct{}{}
+	}
+
+	hasCompletedTasks := false
+	for _, t := range data.completedTasks {
+		// Skip tasks that are from habit templates
+		if t.TemplateID != nil {
+			if _, isHabit := habitTemplateIDs[*t.TemplateID]; isHabit {
+				continue
+			}
+		}
+		hasCompletedTasks = true
+		projectName := data.projectMap[t.ProjectID]
+		priority := "medium"
+		if t.Priority != nil {
+			priority = *t.Priority
+		}
+		sb.WriteString(fmt.Sprintf("- [x] #%d %s - %s (priority: %s)\n", t.ID, escapeMarkdown(t.Title), projectName, priority))
+	}
+	if !hasCompletedTasks {
+		sb.WriteString("No Tasks\n")
+	}
+	sb.WriteString("\n")
+
+	// Habits section
+	sb.WriteString("## Habits\n")
+	if len(data.habits) == 0 {
+		sb.WriteString("No Habits\n")
+	} else {
+		for _, h := range data.habits {
+			projectName := data.projectMap[h.ProjectID]
+			if info, hasTask := data.habitTasks[h.ID]; hasTask {
+				sb.WriteString(fmt.Sprintf("- #%d %s - %s:: %t\n", info.taskID, projectName, escapeMarkdown(h.Title), info.completed))
+			} else {
+				sb.WriteString(fmt.Sprintf("- %s - %s:: false\n", projectName, escapeMarkdown(h.Title)))
+			}
+		}
+	}
+
+	return sb.String()
+}
+
 func runJournalExport(cmd *cobra.Command, args []string) error {
+	// 1. Load and validate config
 	cfg, err := loadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
@@ -558,7 +801,7 @@ func runJournalExport(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("local_reports path not configured")
 	}
 
-	// Parse target date (default to today)
+	// 2. Parse target date
 	targetDate := time.Now()
 	if journalExportDate != "" {
 		parsed, err := time.ParseInLocation("2006-01-02", journalExportDate, time.Local)
@@ -568,198 +811,45 @@ func runJournalExport(cmd *cobra.Command, args []string) error {
 		targetDate = parsed
 	}
 
+	// 3. Fetch all data from API in parallel
 	apiClient := api.NewClient(cfg.APIURL)
 	ctx := context.Background()
-
-	// Fetch all data in parallel
-	journals, err := apiClient.ListJournals(ctx, 0, 100)
-	if err != nil {
-		return fmt.Errorf("failed to fetch journal entries: %w", err)
-	}
-
-	// Filter journals to target date
-	var dayJournals []*types.Comment
-	for _, j := range journals {
-		if isSameDay(j.CreatedAt.Local(), targetDate) {
-			dayJournals = append(dayJournals, j)
-		}
-	}
-
-	// Fetch completed tasks for the day
 	dateStr := targetDate.Format("2006-01-02")
-	tasks, err := apiClient.ListTasks(ctx, &api.TaskListOptions{
-		Status:       "done",
-		UpdatedAfter: dateStr,
-		Limit:        500,
-	})
+
+	apiResults, err := fetchExportData(ctx, apiClient, dateStr)
 	if err != nil {
-		return fmt.Errorf("failed to fetch tasks: %w", err)
+		return err
 	}
 
-	// Filter tasks to only those updated on the target date
-	var completedTasks []*types.Task
-	for _, t := range tasks {
-		if isSameDay(t.UpdatedAt.Local(), targetDate) {
-			completedTasks = append(completedTasks, t)
-		}
+	// 4. Process fetched data
+	projectMap := buildProjectMap(apiResults.projects)
+	habitTemplateIDs := buildHabitTemplateSet(apiResults.habits)
+	habitTasks := buildHabitTaskMap(apiResults.scheduledTasks, habitTemplateIDs)
+
+	exportData := &journalExportData{
+		targetDate:     targetDate,
+		journals:       filterJournalsByTargetDate(apiResults.journals, targetDate),
+		completedTasks: filterTasksByTargetDate(apiResults.doneTasks, targetDate),
+		habits:         apiResults.habits,
+		projectMap:     projectMap,
+		habitTasks:     habitTasks,
 	}
 
-	// Fetch habit templates
-	habits, err := apiClient.ListTemplates(ctx, &api.TemplateListOptions{
-		TemplateType: "habit",
-		Limit:        100,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to fetch habits: %w", err)
-	}
+	// 5. Generate markdown
+	markdown := generateExportMarkdown(exportData)
 
-	// Fetch projects for name lookup
-	projects, err := apiClient.ListProjects(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to fetch projects: %w", err)
-	}
-	projectMap := make(map[int]string)
-	for _, p := range projects {
-		projectMap[p.ID] = p.Name
-	}
+	// 6. Write to file
+	outputPath := buildExportPath(expandPath(cfg.LocalReports), targetDate)
+	outputDir := filepath.Dir(outputPath)
 
-	// Build habit template ID set
-	habitTemplateIDs := make(map[int]bool)
-	for _, h := range habits {
-		habitTemplateIDs[h.ID] = true
-	}
-
-	// Fetch all tasks for the day (any status) to find habit tasks
-	allTasks, err := apiClient.ListTasks(ctx, &api.TaskListOptions{
-		UpdatedAfter: dateStr,
-		Limit:        500,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to fetch all tasks: %w", err)
-	}
-
-	// Build habit task map: template ID -> (task ID, completed)
-	type habitTaskInfo struct {
-		taskID    int
-		completed bool
-	}
-	habitTasks := make(map[int]habitTaskInfo)
-	for _, t := range allTasks {
-		if t.TemplateID != nil && habitTemplateIDs[*t.TemplateID] {
-			if isSameDay(t.UpdatedAt.Local(), targetDate) {
-				habitTasks[*t.TemplateID] = habitTaskInfo{
-					taskID:    t.ID,
-					completed: t.Status == "done",
-				}
-			}
-		}
-	}
-
-	// Generate markdown content
-	var sb strings.Builder
-	dateFormatted := targetDate.Format("01-02-2006")
-
-	sb.WriteString(fmt.Sprintf("# %s Journal\n\n", dateFormatted))
-
-	// Journal entries section
-	for _, j := range dayJournals {
-		// Get timezone abbreviation
-		_, offset := j.CreatedAt.Local().Zone()
-		tz := formatTimezone(offset)
-		timeStr := j.CreatedAt.Local().Format("15:04")
-		sb.WriteString(fmt.Sprintf("- #### time: %s %s\n", timeStr, tz))
-		sb.WriteString(fmt.Sprintf("%s\n\n", j.Content))
-	}
-
-	// Completed Today section (exclude habit tasks)
-	sb.WriteString("## Completed Today\n")
-	hasCompletedTasks := false
-	for _, t := range completedTasks {
-		// Skip tasks that are from habit templates
-		if t.TemplateID != nil && habitTemplateIDs[*t.TemplateID] {
-			continue
-		}
-		hasCompletedTasks = true
-		projectName := projectMap[t.ProjectID]
-		priority := "medium"
-		if t.Priority != nil {
-			priority = *t.Priority
-		}
-		sb.WriteString(fmt.Sprintf("- [x] #%d %s - %s priority:: %s\n", t.ID, t.Title, projectName, priority))
-	}
-	if !hasCompletedTasks {
-		sb.WriteString("No Tasks\n")
-	}
-	sb.WriteString("\n")
-
-	// Habits section
-	sb.WriteString("### Habits\n")
-	if len(habits) == 0 {
-		sb.WriteString("No Habits\n")
-	} else {
-		for _, h := range habits {
-			projectName := projectMap[h.ProjectID]
-			if info, hasTask := habitTasks[h.ID]; hasTask {
-				sb.WriteString(fmt.Sprintf("- #%d %s - %s:: %t\n", info.taskID, projectName, h.Title, info.completed))
-			} else {
-				sb.WriteString(fmt.Sprintf("- %s - %s:: false\n", projectName, h.Title))
-			}
-		}
-	}
-
-	// Build output path
-	localReports := expandPath(cfg.LocalReports)
-	year := targetDate.Format("2006")
-	monthDir := targetDate.Format("01-January")
-	fileName := targetDate.Format("01-02-2006") + "-journal.md"
-
-	outputDir := filepath.Join(localReports, "reviews", year, monthDir)
-	outputPath := filepath.Join(outputDir, fileName)
-
-	// Create directory if it doesn't exist
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", outputDir, err)
 	}
 
-	// Write file
-	if err := os.WriteFile(outputPath, []byte(sb.String()), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(markdown), 0644); err != nil {
 		return fmt.Errorf("failed to write file %s: %w", outputPath, err)
 	}
 
 	fmt.Printf("Journal exported to: %s\n", outputPath)
 	return nil
-}
-
-// formatTimezone returns a two-letter timezone abbreviation
-func formatTimezone(offsetSeconds int) string {
-	hours := offsetSeconds / 3600
-	switch hours {
-	case -5:
-		return "CT"
-	case -6:
-		return "CT"
-	case -8:
-		return "PT"
-	case -7:
-		return "MT"
-	case 0:
-		return "UTC"
-	default:
-		if hours >= 0 {
-			return fmt.Sprintf("+%d", hours)
-		}
-		return fmt.Sprintf("%d", hours)
-	}
-}
-
-// expandPath expands ~ to home directory
-func expandPath(path string) string {
-	if strings.HasPrefix(path, "~/") {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return path
-		}
-		return filepath.Join(home, path[2:])
-	}
-	return path
 }
