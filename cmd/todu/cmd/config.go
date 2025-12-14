@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/evcraddock/todu.sh/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -37,6 +38,16 @@ This shows the effective configuration after merging:
 		// API Configuration
 		fmt.Println("API:")
 		fmt.Printf("  URL: %s\n", cfg.APIURL)
+		if cfg.APIKey != "" {
+			// Mask the API key, showing only first 8 characters
+			masked := cfg.APIKey
+			if len(masked) > 8 {
+				masked = masked[:8] + "..."
+			}
+			fmt.Printf("  Key: %s (configured)\n", masked)
+		} else {
+			fmt.Println("  Key: (not set)")
+		}
 		fmt.Println()
 
 		// Daemon Configuration
@@ -85,7 +96,42 @@ This shows the effective configuration after merging:
 	},
 }
 
+var configSetCmd = &cobra.Command{
+	Use:   "set",
+	Short: "Set configuration values",
+	Long:  `Set configuration values. Use subcommands to set specific settings.`,
+}
+
+var configSetAPIKeyCmd = &cobra.Command{
+	Use:   "api-key <key>",
+	Short: "Set the API key for authentication",
+	Long: `Set the API key used for authenticating with the todu-api.
+
+The API key will be stored in ~/.config/todu/config.yaml.
+
+To generate an API key, use the todu-keys CLI tool in the todu-api project:
+  uv run todu-keys create --name "CLI"`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		apiKey := args[0]
+		configPath := GetConfigFile()
+
+		if err := config.SetAPIKey(configPath, apiKey); err != nil {
+			return fmt.Errorf("failed to set API key: %w", err)
+		}
+
+		// Get the actual path used for display
+		if configPath == "" {
+			configPath, _ = config.GetConfigPath()
+		}
+		fmt.Printf("API key saved to %s\n", configPath)
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(configCmd)
 	configCmd.AddCommand(configShowCmd)
+	configCmd.AddCommand(configSetCmd)
+	configSetCmd.AddCommand(configSetAPIKeyCmd)
 }

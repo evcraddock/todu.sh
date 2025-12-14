@@ -15,13 +15,15 @@ import (
 // Client is an HTTP client for the Todu API
 type Client struct {
 	baseURL    string
+	apiKey     string
 	httpClient *http.Client
 }
 
-// NewClient creates a new API client with the given base URL
-func NewClient(baseURL string) *Client {
+// NewClient creates a new API client with the given base URL and API key
+func NewClient(baseURL, apiKey string) *Client {
 	return &Client{
 		baseURL: baseURL,
+		apiKey:  apiKey,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -51,6 +53,9 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body interf
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -65,6 +70,10 @@ func parseResponse(resp *http.Response, dest interface{}) error {
 	defer resp.Body.Close()
 
 	// Check for HTTP error status codes
+	if resp.StatusCode == 401 {
+		return fmt.Errorf("authentication failed: API key not configured or invalid. " +
+			"Run 'todu config set api-key <key>' or create one with 'todu-keys create --name CLI'")
+	}
 	if resp.StatusCode >= 400 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(bodyBytes))

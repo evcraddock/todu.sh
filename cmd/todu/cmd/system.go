@@ -109,7 +109,7 @@ func runSystemList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	client := api.NewClient(cfg.APIURL)
+	client := api.NewClient(cfg.APIURL, cfg.APIKey)
 	systems, err := client.ListSystems(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to list systems: %w", err)
@@ -187,7 +187,7 @@ func runSystemAdd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	client := api.NewClient(cfg.APIURL)
+	client := api.NewClient(cfg.APIURL, cfg.APIKey)
 
 	var urlPtr *string
 	if systemAddURL != "" {
@@ -221,7 +221,7 @@ func runSystemShow(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	client := api.NewClient(cfg.APIURL)
+	client := api.NewClient(cfg.APIURL, cfg.APIKey)
 
 	// Try to parse as integer ID first
 	var system *types.System
@@ -347,7 +347,7 @@ func runSystemRemove(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	client := api.NewClient(cfg.APIURL)
+	client := api.NewClient(cfg.APIURL, cfg.APIKey)
 
 	// Try to parse as integer ID first, otherwise treat as identifier
 	var system *types.System

@@ -152,7 +152,7 @@ func runProjectList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	client := api.NewClient(cfg.APIURL)
+	client := api.NewClient(cfg.APIURL, cfg.APIKey)
 
 	opts := &api.ProjectListOptions{}
 	if projectListSystem != "" {
@@ -246,7 +246,7 @@ func runProjectAdd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	client := api.NewClient(cfg.APIURL)
+	client := api.NewClient(cfg.APIURL, cfg.APIKey)
 
 	var systemID int
 
@@ -323,7 +323,7 @@ func runProjectShow(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	client := api.NewClient(cfg.APIURL)
+	client := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	// Resolve project ID from name or ID
@@ -403,7 +403,7 @@ func runProjectUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	client := api.NewClient(cfg.APIURL)
+	client := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	// Resolve project ID from name or ID
@@ -451,7 +451,7 @@ func runProjectRemove(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	client := api.NewClient(cfg.APIURL)
+	client := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	// Resolve project ID from name or ID
@@ -533,7 +533,7 @@ func runProjectDiscover(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	client := api.NewClient(cfg.APIURL)
+	client := api.NewClient(cfg.APIURL, cfg.APIKey)
 
 	// Resolve system ID
 	systemID, err := resolveSystemID(client, projectDiscoverSystem)

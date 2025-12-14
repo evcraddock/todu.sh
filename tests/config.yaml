@@ -1,13 +1,9 @@
-# Local development configuration for todu
-# This file is ignored by git and safe for local customization
-
-api_url: "http://localhost:8005"
+api_key: sk_BkAicou2OueuQ9UguB0WNXJM10NRXEsH0dLKB7tYbkA
+api_url: http://localhost:8000
 author: tester
-
 daemon:
-  interval: "5m"
-  projects: []
-
+    interval: 5m
+    projects: []
 output:
-  format: "text"
-  color: true
+    color: true
+    format: text

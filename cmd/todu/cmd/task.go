@@ -228,7 +228,7 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("API URL not configured")
 	}
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	// Resolve system ID if provided (for filtering)
@@ -502,7 +502,7 @@ func runTaskShow(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid task ID: %s", args[0])
 	}
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	task, err := apiClient.GetTask(ctx, taskID)
@@ -625,7 +625,7 @@ func runTaskCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("--title is required")
 	}
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	// Resolve project ID from flag, config default, or error
@@ -722,7 +722,7 @@ func runTaskUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid task ID: %s", args[0])
 	}
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	// Get current task to merge labels/assignees
@@ -855,7 +855,7 @@ func runTaskClose(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid task ID: %s", args[0])
 	}
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	status := "done"
@@ -908,7 +908,7 @@ func runTaskComment(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	commentCreate := &types.CommentCreate{
@@ -954,7 +954,7 @@ func runTaskDelete(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	err = apiClient.DeleteTask(ctx, taskID)
@@ -1030,7 +1030,7 @@ func runTaskMove(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid task ID: %s", args[0])
 	}
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	// Get the source task

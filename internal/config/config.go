@@ -1,16 +1,19 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 // Config represents the main configuration structure
 type Config struct {
 	APIURL         string               `mapstructure:"api_url"`
+	APIKey         string               `mapstructure:"api_key"`
 	Author         string               `mapstructure:"author"`
 	LocalReports   string               `mapstructure:"local_reports"`
 	Daemon         DaemonConfig         `mapstructure:"daemon"`
@@ -78,6 +81,7 @@ func loadFromFile(filePath string, enableEnv bool) (*Config, error) {
 
 	// Set defaults
 	v.SetDefault("api_url", "http://localhost:8000")
+	v.SetDefault("api_key", "")
 	v.SetDefault("author", "")
 	v.SetDefault("local_reports", "")
 	v.SetDefault("daemon.interval", "5m")
@@ -123,6 +127,7 @@ func loadFromPaths(paths []string, enableEnv bool) (*Config, error) {
 
 	// Set defaults
 	v.SetDefault("api_url", "http://localhost:8000")
+	v.SetDefault("api_key", "")
 	v.SetDefault("author", "")
 	v.SetDefault("local_reports", "")
 	v.SetDefault("daemon.interval", "5m")
@@ -169,4 +174,64 @@ func loadFromPaths(paths []string, enableEnv bool) (*Config, error) {
 	}
 
 	return &config, nil
+}
+
+// GetConfigPath returns the path to the config file that should be used for writing.
+// It prefers ~/.config/todu/config.yaml, creating the directory if needed.
+func GetConfigPath() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	// Prefer XDG config directory
+	configDir := filepath.Join(homeDir, ".config", "todu")
+
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create config directory: %w", err)
+	}
+
+	return filepath.Join(configDir, "config.yaml"), nil
+}
+
+// SetAPIKey updates the api_key in the config file.
+// If configPath is empty, uses the default config path.
+// It preserves other settings in the file.
+func SetAPIKey(configPath, apiKey string) error {
+	var err error
+	if configPath == "" {
+		configPath, err = GetConfigPath()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Read existing config file or start with empty map
+	configData := make(map[string]interface{})
+
+	data, err := os.ReadFile(configPath)
+	if err == nil {
+		// File exists, parse it
+		if err := yaml.Unmarshal(data, &configData); err != nil {
+			return fmt.Errorf("failed to parse config file: %w", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	// Update api_key
+	configData["api_key"] = apiKey
+
+	// Write back to file
+	newData, err := yaml.Marshal(configData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	if err := os.WriteFile(configPath, newData, 0600); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	return nil
 }

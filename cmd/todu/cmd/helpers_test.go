@@ -29,7 +29,7 @@ func TestEnsureLocalSystem_CreatesWhenNotExist(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := api.NewClient(server.URL)
+	client := api.NewClient(server.URL, "")
 	systemID, err := ensureLocalSystem(client)
 
 	if err != nil {
@@ -61,7 +61,7 @@ func TestEnsureLocalSystem_ReturnsExistingID(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := api.NewClient(server.URL)
+	client := api.NewClient(server.URL, "")
 	systemID, err := ensureLocalSystem(client)
 
 	if err != nil {
@@ -77,7 +77,7 @@ func TestEnsureLocalSystem_ReturnsExistingID(t *testing.T) {
 
 func TestResolveSystemID_WithNumericID(t *testing.T) {
 	// No server needed for numeric ID
-	client := api.NewClient("http://unused")
+	client := api.NewClient("http://unused", "")
 	id, err := resolveSystemID(client, "123")
 
 	if err != nil {
@@ -100,7 +100,7 @@ func TestResolveSystemID_WithIdentifier(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := api.NewClient(server.URL)
+	client := api.NewClient(server.URL, "")
 	id, err := resolveSystemID(client, "forgejo")
 
 	if err != nil {
@@ -120,7 +120,7 @@ func TestResolveSystemID_NotFound(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := api.NewClient(server.URL)
+	client := api.NewClient(server.URL, "")
 	_, err := resolveSystemID(client, "nonexistent")
 
 	if err == nil {
@@ -129,7 +129,7 @@ func TestResolveSystemID_NotFound(t *testing.T) {
 }
 
 func TestResolveSystemID_EmptyString(t *testing.T) {
-	client := api.NewClient("http://unused")
+	client := api.NewClient("http://unused", "")
 	id, err := resolveSystemID(client, "")
 
 	if err != nil {
@@ -154,7 +154,7 @@ func TestEnsureDefaultProject_ReturnsExistingID(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := api.NewClient(server.URL)
+	client := api.NewClient(server.URL, "")
 	projectID, err := ensureDefaultProject(context.Background(), client, "Inbox")
 
 	if err != nil {
@@ -178,7 +178,7 @@ func TestEnsureDefaultProject_CaseInsensitiveMatch(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := api.NewClient(server.URL)
+	client := api.NewClient(server.URL, "")
 	projectID, err := ensureDefaultProject(context.Background(), client, "inbox")
 
 	if err != nil {
@@ -211,7 +211,7 @@ func TestEnsureDefaultProject_CreatesWhenNotExist(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := api.NewClient(server.URL)
+	client := api.NewClient(server.URL, "")
 	projectID, err := ensureDefaultProject(context.Background(), client, "Inbox")
 
 	if err != nil {
@@ -251,7 +251,7 @@ func TestEnsureDefaultProject_CreatesLocalSystem(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := api.NewClient(server.URL)
+	client := api.NewClient(server.URL, "")
 	projectID, err := ensureDefaultProject(context.Background(), client, "Inbox")
 
 	if err != nil {

@@ -172,7 +172,7 @@ func runJournalAdd(cmd *cobra.Command, args []string) error {
 	// Get author (from flag, config, git, or default)
 	author := getAuthor(journalAddAuthor, cfg)
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	// Create journal entry (TaskID is nil)
@@ -203,7 +203,7 @@ func runJournalList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("API URL not configured")
 	}
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	// Validate type parameter
@@ -332,7 +332,7 @@ func runJournalShow(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid entry ID: %s", args[0])
 	}
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	entry, err := apiClient.GetComment(ctx, entryID)
@@ -386,7 +386,7 @@ func runJournalEdit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid entry ID: %s", args[0])
 	}
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	// Get current entry
@@ -458,7 +458,7 @@ func runJournalDelete(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	err = apiClient.DeleteComment(ctx, entryID)
@@ -482,7 +482,7 @@ func runJournalSearch(cmd *cobra.Command, args []string) error {
 
 	query := strings.ToLower(args[0])
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	// Fetch all journal entries (API max limit is 100)
@@ -570,7 +570,7 @@ func runJournalExport(cmd *cobra.Command, args []string) error {
 	}
 
 	// 3. Export using the shared journal package
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	outputPath, err := journal.Export(ctx, apiClient, targetDate, cfg.LocalReports)

@@ -69,7 +69,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create API client
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	// Create sync engine
@@ -142,7 +142,7 @@ func runSyncStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create API client
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 
 	// Get projects
 	ctx := context.Background()

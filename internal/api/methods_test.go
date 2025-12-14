@@ -45,7 +45,7 @@ func TestListSystems(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	result, err := client.ListSystems(context.Background())
 
 	if err != nil {
@@ -81,7 +81,7 @@ func TestGetSystem(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	result, err := client.GetSystem(context.Background(), 1)
 
 	if err != nil {
@@ -102,7 +102,7 @@ func TestGetSystem404(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	_, err := client.GetSystem(context.Background(), 999)
 
 	if err == nil {
@@ -146,7 +146,7 @@ func TestCreateSystem(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	result, err := client.CreateSystem(context.Background(), create)
 
 	if err != nil {
@@ -195,7 +195,7 @@ func TestUpdateSystem(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	result, err := client.UpdateSystem(context.Background(), 1, update)
 
 	if err != nil {
@@ -218,7 +218,7 @@ func TestDeleteSystem(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	err := client.DeleteSystem(context.Background(), 1)
 
 	if err != nil {
@@ -256,7 +256,7 @@ func TestListProjects(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	result, err := client.ListProjects(context.Background(), nil)
 
 	if err != nil {
@@ -293,7 +293,7 @@ func TestListProjectsWithFilter(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	opts := &ProjectListOptions{SystemID: &systemID}
 	result, err := client.ListProjects(context.Background(), opts)
 
@@ -327,7 +327,7 @@ func TestGetProject(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	result, err := client.GetProject(context.Background(), 1)
 
 	if err != nil {
@@ -374,7 +374,7 @@ func TestCreateProject(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	result, err := client.CreateProject(context.Background(), create)
 
 	if err != nil {
@@ -410,7 +410,7 @@ func TestUpdateProject(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	result, err := client.UpdateProject(context.Background(), 1, update)
 
 	if err != nil {
@@ -430,7 +430,7 @@ func TestDeleteProject(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	err := client.DeleteProject(context.Background(), 1, false)
 
 	if err != nil {
@@ -465,7 +465,7 @@ func TestListTasks(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	result, err := client.ListTasks(context.Background(), nil)
 
 	if err != nil {
@@ -506,7 +506,7 @@ func TestListTasksWithFilter(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	opts := &TaskListOptions{
 		ProjectID: &projectID,
 	}
@@ -538,7 +538,7 @@ func TestGetTask(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	result, err := client.GetTask(context.Background(), 1)
 
 	if err != nil {
@@ -576,7 +576,7 @@ func TestCreateTask(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	result, err := client.CreateTask(context.Background(), create)
 
 	if err != nil {
@@ -611,7 +611,7 @@ func TestUpdateTask(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	result, err := client.UpdateTask(context.Background(), 1, update)
 
 	if err != nil {
@@ -631,7 +631,7 @@ func TestDeleteTask(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	err := client.DeleteTask(context.Background(), 1)
 
 	if err != nil {
@@ -664,7 +664,7 @@ func TestListComments(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	result, err := client.ListComments(context.Background(), 1)
 
 	if err != nil {
@@ -696,7 +696,7 @@ func TestGetComment(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	result, err := client.GetComment(context.Background(), 1)
 
 	if err != nil {
@@ -740,7 +740,7 @@ func TestCreateComment(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	result, err := client.CreateComment(context.Background(), create)
 
 	if err != nil {
@@ -763,7 +763,7 @@ func TestDeleteComment(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	err := client.DeleteComment(context.Background(), 1)
 
 	if err != nil {
@@ -780,7 +780,7 @@ func TestServerError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	_, err := client.ListSystems(context.Background())
 
 	if err == nil {
@@ -795,7 +795,7 @@ func TestInvalidJSON(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	_, err := client.ListSystems(context.Background())
 
 	if err == nil {
@@ -847,7 +847,7 @@ func TestListTemplates(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	result, err := client.ListTemplates(context.Background(), nil)
 
 	if err != nil {
@@ -896,7 +896,7 @@ func TestListTemplatesWithFilters(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	opts := &TemplateListOptions{
 		ProjectID:    &projectID,
 		Active:       &active,
@@ -940,7 +940,7 @@ func TestGetTemplate(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	result, err := client.GetTemplate(context.Background(), 1)
 
 	if err != nil {
@@ -961,7 +961,7 @@ func TestGetTemplate404(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	_, err := client.GetTemplate(context.Background(), 999)
 
 	if err == nil {
@@ -1019,7 +1019,7 @@ func TestCreateTemplate(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	result, err := client.CreateTemplate(context.Background(), create)
 
 	if err != nil {
@@ -1076,7 +1076,7 @@ func TestUpdateTemplate(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	result, err := client.UpdateTemplate(context.Background(), 1, update)
 
 	if err != nil {
@@ -1099,7 +1099,7 @@ func TestDeleteTemplate(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.URL)
+	client := NewClient(server.URL, "")
 	err := client.DeleteTemplate(context.Background(), 1)
 
 	if err != nil {

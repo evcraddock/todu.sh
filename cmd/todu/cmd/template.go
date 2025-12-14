@@ -198,7 +198,7 @@ func runTemplateList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("API URL not configured")
 	}
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	// Build API options with filters
@@ -316,7 +316,7 @@ func runTemplateShow(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid template ID: %s", args[0])
 	}
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	template, err := apiClient.GetTemplate(ctx, templateID)
@@ -500,7 +500,7 @@ func runTemplateCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid timezone: %w", err)
 	}
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	// Resolve project ID from flag, config default, or error
@@ -579,7 +579,7 @@ func runTemplateUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid template ID: %s", args[0])
 	}
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	// Build update request
@@ -651,7 +651,7 @@ func runTemplateActivate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid template ID: %s", args[0])
 	}
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	active := true
@@ -683,7 +683,7 @@ func runTemplateDeactivate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid template ID: %s", args[0])
 	}
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	active := false
@@ -726,7 +726,7 @@ func runTemplateDelete(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	apiClient := api.NewClient(cfg.APIURL)
+	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	err = apiClient.DeleteTemplate(ctx, templateID)

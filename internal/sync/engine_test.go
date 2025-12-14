@@ -36,7 +36,7 @@ func setupTestEngine(t *testing.T) (*Engine, *httptest.Server, *plugin.MockPlugi
 	}))
 
 	// Create API client
-	apiClient := api.NewClient(server.URL)
+	apiClient := api.NewClient(server.URL, "")
 
 	// Create registry and register mock plugin factory that returns the shared instance
 	reg := registry.New()
@@ -231,7 +231,7 @@ func stringPtr(s string) *string {
 }
 
 func TestNewEngine(t *testing.T) {
-	apiClient := api.NewClient("http://test.example.com")
+	apiClient := api.NewClient("http://test.example.com", "")
 	reg := registry.New()
 
 	engine := NewEngine(apiClient, reg)
