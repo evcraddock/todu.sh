@@ -1,0 +1,50 @@
+version: 2
+
+project_name: todu
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./cmd/todu
+    binary: todu
+    ldflags:
+      - -s -w
+      - -X 'github.com/evcraddock/todu.sh/cmd/todu/cmd.Version={{.Version}}'
+      - -X 'github.com/evcraddock/todu.sh/cmd/todu/cmd.Commit={{.ShortCommit}}'
+      - -X 'github.com/evcraddock/todu.sh/cmd/todu/cmd.BuildDate={{.Date}}'
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - formats: ['tar.gz']
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: evcraddock
+    name: todu.sh
+  draft: false
+  prerelease: auto
