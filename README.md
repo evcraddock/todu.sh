@@ -1,11 +1,13 @@
 # Todu CLI
 
-A command-line tool for synchronizing tasks across multiple systems (GitHub Issues, Jira, Todoist, etc.) with a central Todu API.
+A command-line tool for synchronizing tasks across multiple systems
+(GitHub Issues, Jira, Todoist, etc.) with a central Todu API.
 
 ## Features
 
 - **Multi-System Sync**: Sync tasks between GitHub, Forgejo, Todoist, and more
-- **Local-Only Projects**: Create projects that exist only in Todu without external sync
+- **Local-Only Projects**: Create projects that exist only in Todu without
+  external sync
 - **Bidirectional Sync**: Push and pull changes between systems
 - **Plugin Architecture**: Easy to add new task management systems
 - **Background Daemon**: Automatic sync with configurable intervals
@@ -19,16 +21,45 @@ A command-line tool for synchronizing tasks across multiple systems (GitHub Issu
 
 ### Installation
 
+#### From GitHub Releases (Recommended)
+
+Download the latest release for your platform:
+
 ```bash
-# Clone the repository
+# Linux (amd64)
+curl -LO https://github.com/evcraddock/todu.sh/releases/latest/download/todu_linux_amd64.tar.gz
+tar -xzf todu_linux_amd64.tar.gz
+sudo mv todu /usr/local/bin/
+
+# Linux (arm64)
+curl -LO https://github.com/evcraddock/todu.sh/releases/latest/download/todu_linux_arm64.tar.gz
+tar -xzf todu_linux_arm64.tar.gz
+sudo mv todu /usr/local/bin/
+
+# macOS (Intel)
+curl -LO https://github.com/evcraddock/todu.sh/releases/latest/download/todu_darwin_amd64.tar.gz
+tar -xzf todu_darwin_amd64.tar.gz
+sudo mv todu /usr/local/bin/
+
+# macOS (Apple Silicon)
+curl -LO https://github.com/evcraddock/todu.sh/releases/latest/download/todu_darwin_arm64.tar.gz
+tar -xzf todu_darwin_arm64.tar.gz
+sudo mv todu /usr/local/bin/
+```
+
+#### Using Go Install
+
+```bash
+go install github.com/evcraddock/todu.sh/cmd/todu@latest
+```
+
+#### Build from Source
+
+```bash
 git clone https://github.com/evcraddock/todu.sh
 cd todu.sh
-
-# Build the CLI
-go build -o todu ./cmd/todu
-
-# (Optional) Install to your PATH
-sudo mv todu /usr/local/bin/
+make build
+sudo mv .build/todu /usr/local/bin/
 ```
 
 ### Initial Setup
@@ -174,7 +205,10 @@ todu task delete 123
 
 ### Recurring Task Templates
 
-Recurring task templates allow you to define tasks that repeat on a schedule using [RRULE](https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html) recurrence patterns.
+Recurring task templates allow you to define tasks that repeat on a schedule
+using [RRULE][rrule] recurrence patterns.
+
+[rrule]: https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html
 
 ```bash
 # List all templates
@@ -217,8 +251,10 @@ todu template delete 1
 
 **Template Types:**
 
-- **task**: Regular recurring tasks with deadlines (e.g., weekly reports, monthly reviews)
-- **habit**: Streak-based activities for habit tracking (e.g., daily exercise, meditation)
+- **task**: Regular recurring tasks with deadlines
+  (e.g., weekly reports, monthly reviews)
+- **habit**: Streak-based activities for habit tracking
+  (e.g., daily exercise, meditation)
 
 **Common RRULE Patterns:**
 
@@ -234,7 +270,11 @@ todu template delete 1
 
 **Timezones:**
 
-Templates use [IANA timezone names](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) (e.g., `America/New_York`, `Europe/London`, `Asia/Tokyo`). Common shortcuts like `EST`, `CST`, `PST` are also supported.
+Templates use [IANA timezone names][tz] (e.g., `America/New_York`,
+`Europe/London`, `Asia/Tokyo`). Common shortcuts like `EST`, `CST`, `PST`
+are also supported.
+
+[tz]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 
 ### Daemon Management
 
@@ -297,7 +337,7 @@ export TODU_GITHUB_URL="https://api.github.com"  # Optional, defaults to GitHub.
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │                        Todu CLI                         │
 ├─────────────────────────────────────────────────────────┤
@@ -320,11 +360,13 @@ export TODU_GITHUB_URL="https://api.github.com"  # Optional, defaults to GitHub.
 
 ## Plugin System
 
-Todu uses a plugin architecture to support multiple task management systems. Each plugin implements a common interface for fetching and updating tasks.
+Todu uses a plugin architecture to support multiple task management systems.
+Each plugin implements a common interface for fetching and updating tasks.
 
 **Currently Available Plugins:**
 
-- **Local**: Local-only projects with no external sync (auto-registered on first use)
+- **Local**: Local-only projects with no external sync
+  (auto-registered on first use)
 - **GitHub**: Sync with GitHub Issues
 - **Forgejo**: Sync with Forgejo/Gitea Issues
 

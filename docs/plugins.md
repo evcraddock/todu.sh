@@ -8,14 +8,14 @@ Guide to available plugins and their configuration.
 
 Sync tasks with GitHub Issues.
 
-#### Configuration
+#### GitHub Configuration
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `TODU_GITHUB_TOKEN` | Personal Access Token | Yes | - |
-| `TODU_GITHUB_URL` | API endpoint | No | `https://api.github.com` |
+| Variable            | Description           | Required | Default                 |
+| ------------------- | --------------------- | -------- | ----------------------- |
+| `TODU_GITHUB_TOKEN` | Personal Access Token | Yes      | -                       |
+| `TODU_GITHUB_URL`   | API endpoint          | No       | `https://api.github.com`|
 
-#### Setup
+#### GitHub Setup
 
 1. **Create Personal Access Token**:
    - Go to GitHub Settings → Developer settings → Personal access tokens
@@ -41,7 +41,7 @@ todu system add github
 todu project add --system github --external-id "owner/repo" --name "My Repo"
 ```
 
-#### Type Mappings
+#### GitHub Type Mappings
 
 **Repository → Project:**
 
@@ -67,7 +67,7 @@ todu project add --system github --external-id "owner/repo" --name "My Repo"
 - `author`: Comment author login
 - `created_at`/`updated_at`: Comment timestamps
 
-#### Supported Operations
+#### GitHub Supported Operations
 
 - ✅ Fetch repositories
 - ✅ Fetch issues
@@ -78,9 +78,10 @@ todu project add --system github --external-id "owner/repo" --name "My Repo"
 - ❌ Delete issues (not supported by GitHub API)
 - ❌ Update comments (GitHub comments are immutable)
 
-#### Notes
+#### GitHub Notes
 
-- **Rate Limiting**: GitHub has rate limits (5000 requests/hour for authenticated users)
+- **Rate Limiting**: GitHub has rate limits
+  (5000 requests/hour for authenticated users)
 - **Draft PRs**: Not synced as tasks
 - **Pull Requests**: Not currently synced (issues only)
 - **Projects**: GitHub Projects are not synced (only Issues)
@@ -90,14 +91,14 @@ todu project add --system github --external-id "owner/repo" --name "My Repo"
 
 Sync tasks with Forgejo/Gitea Issues.
 
-#### Configuration
+#### Forgejo Configuration
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `TODU_FORGEJO_TOKEN` | API Token | Yes | - |
-| `TODU_FORGEJO_URL` | Forgejo instance URL | Yes | - |
+| Variable             | Description          | Required | Default |
+| -------------------- | -------------------- | -------- | ------- |
+| `TODU_FORGEJO_TOKEN` | API Token            | Yes      | -       |
+| `TODU_FORGEJO_URL`   | Forgejo instance URL | Yes      | -       |
 
-#### Setup
+#### Forgejo Setup
 
 1. **Create API Token**:
    - Go to Forgejo Settings → Applications → Generate New Token
@@ -123,11 +124,11 @@ todu system add forgejo
 todu project add --system forgejo --external-id "owner/repo" --name "My Repo"
 ```
 
-#### Type Mappings
+#### Forgejo Type Mappings
 
 Same as GitHub plugin (Forgejo/Gitea use GitHub-compatible API).
 
-#### Supported Operations
+#### Forgejo Supported Operations
 
 - ✅ Fetch repositories
 - ✅ Fetch issues
@@ -136,7 +137,7 @@ Same as GitHub plugin (Forgejo/Gitea use GitHub-compatible API).
 - ✅ Fetch comments
 - ✅ Create comments
 
-#### Notes
+#### Forgejo Notes
 
 - **Compatible**: Works with both Forgejo and Gitea
 - **Self-Hosted**: Requires `TODU_FORGEJO_URL` to point to your instance
@@ -146,13 +147,13 @@ Same as GitHub plugin (Forgejo/Gitea use GitHub-compatible API).
 
 Sync tasks with Todoist personal task management.
 
-#### Configuration
+#### Todoist Configuration
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `TODU_PLUGIN_TODOIST_TOKEN` | API Token | Yes | - |
+| Variable                    | Description | Required | Default |
+| --------------------------- | ----------- | -------- | ------- |
+| `TODU_PLUGIN_TODOIST_TOKEN` | API Token   | Yes      | -       |
 
-#### Setup
+#### Todoist Setup
 
 1. **Create API Token**:
    - Go to Todoist Settings → Integrations → Developer
@@ -178,7 +179,7 @@ todu system add todoist
 todu project add --system todoist --external-id "project-id" --name "My Project"
 ```
 
-#### Type Mappings
+#### Todoist Type Mappings
 
 **Todoist Project → Todu Project:**
 
@@ -209,7 +210,7 @@ todu project add --system todoist --external-id "project-id" --name "My Project"
 - `author`: Empty (REST API doesn't provide author)
 - `created_at`/`updated_at`: Posted timestamp
 
-#### Supported Operations
+#### Todoist Supported Operations
 
 - ✅ Fetch projects
 - ✅ Fetch tasks (with optional project filter)
@@ -220,12 +221,15 @@ todu project add --system todoist --external-id "project-id" --name "My Project"
 - ❌ Assignees (personal task manager, not supported)
 - ❌ Delete tasks (not implemented)
 
-#### Notes
+#### Todoist Notes
 
-- **Personal Task Manager**: Todoist is designed for personal use, so no assignees are supported
-- **Priority Inversion**: Todoist uses 4=highest priority (opposite of typical systems)
+- **Personal Task Manager**: Todoist is designed for personal use,
+  so no assignees are supported
+- **Priority Inversion**: Todoist uses 4=highest priority
+  (opposite of typical systems)
 - **REST API v2**: Uses Todoist REST API v2
-- **No Updated Timestamp**: REST API doesn't provide task updated_at, so incremental sync is limited
+- **No Updated Timestamp**: REST API doesn't provide task updated_at,
+  so incremental sync is limited
 - **Rate Limiting**: Be mindful of Todoist API rate limits
 - **Completion**: Closing/reopening tasks uses separate API endpoints
 

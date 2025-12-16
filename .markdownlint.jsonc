@@ -1,0 +1,14 @@
+{
+  // Disable line length - too strict for documentation
+  "MD013": false,
+  // Allow duplicate headings in different sections (common in plugin docs)
+  "MD024": {
+    "siblings_only": true
+  },
+  // Require language for code blocks
+  "MD040": true,
+  // First line should be heading
+  "MD041": true,
+  // Table formatting - be lenient
+  "MD060": false
+}

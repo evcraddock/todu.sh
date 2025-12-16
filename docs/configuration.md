@@ -112,12 +112,12 @@ Environment variables override configuration file values.
 
 ### General Configuration
 
-| Variable | Config Equivalent | Description |
-|----------|------------------|-------------|
-| `TODU_API_URL` | `api_url` | Todu API endpoint |
+| Variable               | Config Equivalent | Description          |
+| ---------------------- | ----------------- | -------------------- |
+| `TODU_API_URL`         | `api_url`         | Todu API endpoint    |
 | `TODU_DAEMON_INTERVAL` | `daemon.interval` | Daemon sync interval |
-| `TODU_OUTPUT_FORMAT` | `output.format` | Output format |
-| `TODU_OUTPUT_COLOR` | `output.color` | Enable color output |
+| `TODU_OUTPUT_FORMAT`   | `output.format`   | Output format        |
+| `TODU_OUTPUT_COLOR`    | `output.color`    | Enable color output  |
 
 Example:
 
@@ -132,10 +132,10 @@ Each plugin uses environment variables for authentication and configuration:
 
 #### GitHub Plugin
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `TODU_GITHUB_TOKEN` | GitHub Personal Access Token | Yes |
-| `TODU_GITHUB_URL` | GitHub API URL | No (defaults to `https://api.github.com`) |
+| Variable            | Description                  | Required |
+| ------------------- | ---------------------------- | -------- |
+| `TODU_GITHUB_TOKEN` | GitHub Personal Access Token | Yes      |
+| `TODU_GITHUB_URL`   | GitHub API URL               | No       |
 
 ```bash
 export TODU_GITHUB_TOKEN="ghp_your_token_here"
@@ -144,10 +144,10 @@ export TODU_GITHUB_URL="https://api.github.com"
 
 #### Forgejo Plugin
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `TODU_FORGEJO_TOKEN` | Forgejo API token | Yes |
-| `TODU_FORGEJO_URL` | Forgejo instance URL | Yes |
+| Variable             | Description          | Required |
+| -------------------- | -------------------- | -------- |
+| `TODU_FORGEJO_TOKEN` | Forgejo API token    | Yes      |
+| `TODU_FORGEJO_URL`   | Forgejo instance URL | Yes      |
 
 ```bash
 export TODU_FORGEJO_TOKEN="your_token_here"
@@ -181,7 +181,7 @@ todu config show
 
 Output:
 
-```
+```text
 api_url: http://localhost:8000
 daemon.interval: 5m
 daemon.projects: []
