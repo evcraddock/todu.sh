@@ -1101,9 +1101,23 @@ func runTaskMove(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create new task: %w", err)
 	}
 
+	// Check if source task has comments or external source
+	sourceComments, err := apiClient.ListComments(ctx, sourceTask.ID)
+	if err != nil {
+		// Log but don't fail - we can still proceed
+		fmt.Printf("Warning: failed to check comments on source task: %v\n", err)
+		sourceComments = nil
+	}
+
+	hasComments := len(sourceComments) > 0
+	hasExternalSource := sourceTask.SourceURL != nil && *sourceTask.SourceURL != ""
+
+	// Determine whether to delete or cancel the old task
+	shouldDelete := !hasComments && !hasExternalSource
+
 	// Add comment to new task: "Moved from task #X (URL)"
 	newTaskComment := fmt.Sprintf("Moved from task #%d", sourceTask.ID)
-	if sourceTask.SourceURL != nil && *sourceTask.SourceURL != "" {
+	if hasExternalSource {
 		newTaskComment = fmt.Sprintf("Moved from task #%d (%s)", sourceTask.ID, *sourceTask.SourceURL)
 	}
 
@@ -1119,39 +1133,51 @@ func runTaskMove(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Warning: failed to add comment to new task: %v\n", err)
 	}
 
-	// Add comment to old task: "Moved to task #Y in [project_name](project_url)"
-	projectURL := getProjectURL(ctx, apiClient, targetProject)
-	var oldTaskComment string
-	if projectURL != "" {
-		oldTaskComment = fmt.Sprintf("Moved to task #%d in [%s](%s)", newTask.ID, targetProject.Name, projectURL)
+	if shouldDelete {
+		// Delete the old task (no comments or external source to preserve)
+		err = apiClient.DeleteTask(ctx, sourceTask.ID)
+		if err != nil {
+			return fmt.Errorf("failed to delete old task: %w", err)
+		}
+
+		fmt.Printf("Task #%d moved to project %s as task #%d\n", sourceTask.ID, targetProject.Name, newTask.ID)
+		fmt.Printf("Old task #%d has been deleted\n", sourceTask.ID)
 	} else {
-		oldTaskComment = fmt.Sprintf("Moved to task #%d in %s", newTask.ID, targetProject.Name)
+		// Add comment to old task: "Moved to task #Y in [project_name](project_url)"
+		projectURL := getProjectURL(ctx, apiClient, targetProject)
+		var oldTaskComment string
+		if projectURL != "" {
+			oldTaskComment = fmt.Sprintf("Moved to task #%d in [%s](%s)", newTask.ID, targetProject.Name, projectURL)
+		} else {
+			oldTaskComment = fmt.Sprintf("Moved to task #%d in %s", newTask.ID, targetProject.Name)
+		}
+
+		oldTaskCommentCreate := &types.CommentCreate{
+			TaskID:  &sourceTask.ID,
+			Content: oldTaskComment,
+			Author:  "system",
+		}
+
+		_, err = apiClient.CreateComment(ctx, oldTaskCommentCreate)
+		if err != nil {
+			// Log but don't fail - the task was created successfully
+			fmt.Printf("Warning: failed to add comment to old task: %v\n", err)
+		}
+
+		// Cancel the old task
+		canceledStatus := "canceled"
+		taskUpdate := &types.TaskUpdate{
+			Status: &canceledStatus,
+		}
+
+		_, err = apiClient.UpdateTask(ctx, sourceTask.ID, taskUpdate)
+		if err != nil {
+			return fmt.Errorf("failed to cancel old task: %w", err)
+		}
+
+		fmt.Printf("Task #%d moved to project %s as task #%d\n", sourceTask.ID, targetProject.Name, newTask.ID)
+		fmt.Printf("Old task #%d has been canceled\n", sourceTask.ID)
 	}
 
-	oldTaskCommentCreate := &types.CommentCreate{
-		TaskID:  &sourceTask.ID,
-		Content: oldTaskComment,
-		Author:  "system",
-	}
-
-	_, err = apiClient.CreateComment(ctx, oldTaskCommentCreate)
-	if err != nil {
-		// Log but don't fail - the task was created successfully
-		fmt.Printf("Warning: failed to add comment to old task: %v\n", err)
-	}
-
-	// Cancel the old task
-	canceledStatus := "canceled"
-	taskUpdate := &types.TaskUpdate{
-		Status: &canceledStatus,
-	}
-
-	_, err = apiClient.UpdateTask(ctx, sourceTask.ID, taskUpdate)
-	if err != nil {
-		return fmt.Errorf("failed to cancel old task: %w", err)
-	}
-
-	fmt.Printf("Task #%d moved to project %s as task #%d\n", sourceTask.ID, targetProject.Name, newTask.ID)
-	fmt.Printf("Old task #%d has been canceled\n", sourceTask.ID)
 	return nil
 }
