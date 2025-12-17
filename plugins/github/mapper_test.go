@@ -11,45 +11,45 @@ import (
 // TestMapToduStatusToGitHub tests the mapping from todu status to GitHub state and state_reason.
 func TestMapToduStatusToGitHub(t *testing.T) {
 	tests := []struct {
-		name              string
-		toduStatus        string
-		expectedState     string
+		name                string
+		toduStatus          string
+		expectedState       string
 		expectedStateReason string
 	}{
 		{
-			name:              "done maps to closed+completed",
-			toduStatus:        "done",
-			expectedState:     "closed",
+			name:                "done maps to closed+completed",
+			toduStatus:          "done",
+			expectedState:       "closed",
 			expectedStateReason: "completed",
 		},
 		{
-			name:              "canceled maps to closed+not_planned",
-			toduStatus:        "canceled",
-			expectedState:     "closed",
+			name:                "canceled maps to closed+not_planned",
+			toduStatus:          "canceled",
+			expectedState:       "closed",
 			expectedStateReason: "not_planned",
 		},
 		{
-			name:              "active maps to open",
-			toduStatus:        "active",
-			expectedState:     "open",
+			name:                "active maps to open",
+			toduStatus:          "active",
+			expectedState:       "open",
 			expectedStateReason: "",
 		},
 		{
-			name:              "inprogress maps to open",
-			toduStatus:        "inprogress",
-			expectedState:     "open",
+			name:                "inprogress maps to open",
+			toduStatus:          "inprogress",
+			expectedState:       "open",
 			expectedStateReason: "",
 		},
 		{
-			name:              "waiting maps to open",
-			toduStatus:        "waiting",
-			expectedState:     "open",
+			name:                "waiting maps to open",
+			toduStatus:          "waiting",
+			expectedState:       "open",
 			expectedStateReason: "",
 		},
 		{
-			name:              "unknown status maps to open",
-			toduStatus:        "some-unknown-status",
-			expectedState:     "open",
+			name:                "unknown status maps to open",
+			toduStatus:          "some-unknown-status",
+			expectedState:       "open",
 			expectedStateReason: "",
 		},
 	}
@@ -70,46 +70,46 @@ func TestMapToduStatusToGitHub(t *testing.T) {
 // TestMapGitHubStatusToTodu tests the mapping from GitHub state and state_reason to todu status.
 func TestMapGitHubStatusToTodu(t *testing.T) {
 	tests := []struct {
-		name           string
-		githubState    string
+		name              string
+		githubState       string
 		githubStateReason string
-		expectedStatus string
+		expectedStatus    string
 	}{
 		{
-			name:           "closed+completed maps to done",
-			githubState:    "closed",
+			name:              "closed+completed maps to done",
+			githubState:       "closed",
 			githubStateReason: "completed",
-			expectedStatus: "done",
+			expectedStatus:    "done",
 		},
 		{
-			name:           "closed+not_planned maps to canceled",
-			githubState:    "closed",
+			name:              "closed+not_planned maps to canceled",
+			githubState:       "closed",
 			githubStateReason: "not_planned",
-			expectedStatus: "canceled",
+			expectedStatus:    "canceled",
 		},
 		{
-			name:           "closed with no state_reason maps to done (backward compatibility)",
-			githubState:    "closed",
+			name:              "closed with no state_reason maps to done (backward compatibility)",
+			githubState:       "closed",
 			githubStateReason: "",
-			expectedStatus: "done",
+			expectedStatus:    "done",
 		},
 		{
-			name:           "closed+reopened maps to done",
-			githubState:    "closed",
+			name:              "closed+reopened maps to done",
+			githubState:       "closed",
 			githubStateReason: "reopened",
-			expectedStatus: "done",
+			expectedStatus:    "done",
 		},
 		{
-			name:           "open maps to active",
-			githubState:    "open",
+			name:              "open maps to active",
+			githubState:       "open",
 			githubStateReason: "",
-			expectedStatus: "active",
+			expectedStatus:    "active",
 		},
 		{
-			name:           "open with any state_reason maps to active",
-			githubState:    "open",
+			name:              "open with any state_reason maps to active",
+			githubState:       "open",
 			githubStateReason: "reopened",
-			expectedStatus: "active",
+			expectedStatus:    "active",
 		},
 	}
 
@@ -130,34 +130,34 @@ func TestIssueToTask_StatusMapping(t *testing.T) {
 	repo := "test-repo"
 
 	tests := []struct {
-		name           string
-		githubState    string
+		name              string
+		githubState       string
 		githubStateReason string
-		expectedStatus string
+		expectedStatus    string
 	}{
 		{
-			name:           "closed issue with completed reason",
-			githubState:    "closed",
+			name:              "closed issue with completed reason",
+			githubState:       "closed",
 			githubStateReason: "completed",
-			expectedStatus: "done",
+			expectedStatus:    "done",
 		},
 		{
-			name:           "closed issue with not_planned reason",
-			githubState:    "closed",
+			name:              "closed issue with not_planned reason",
+			githubState:       "closed",
 			githubStateReason: "not_planned",
-			expectedStatus: "canceled",
+			expectedStatus:    "canceled",
 		},
 		{
-			name:           "closed issue without state_reason (backward compatibility)",
-			githubState:    "closed",
+			name:              "closed issue without state_reason (backward compatibility)",
+			githubState:       "closed",
 			githubStateReason: "",
-			expectedStatus: "done",
+			expectedStatus:    "done",
 		},
 		{
-			name:           "open issue",
-			githubState:    "open",
+			name:              "open issue",
+			githubState:       "open",
 			githubStateReason: "",
-			expectedStatus: "active",
+			expectedStatus:    "active",
 		},
 	}
 
@@ -186,33 +186,33 @@ func TestIssueToTask_StatusMapping(t *testing.T) {
 // TestTaskUpdateToIssueRequest_StatusMapping tests that taskUpdateToIssueRequest sets state_reason.
 func TestTaskUpdateToIssueRequest_StatusMapping(t *testing.T) {
 	tests := []struct {
-		name              string
-		toduStatus        string
-		expectedState     string
+		name                string
+		toduStatus          string
+		expectedState       string
 		expectedStateReason *string
 	}{
 		{
-			name:              "done status sets completed state_reason",
-			toduStatus:        "done",
-			expectedState:     "closed",
+			name:                "done status sets completed state_reason",
+			toduStatus:          "done",
+			expectedState:       "closed",
 			expectedStateReason: github.String("completed"),
 		},
 		{
-			name:              "canceled status sets not_planned state_reason",
-			toduStatus:        "canceled",
-			expectedState:     "closed",
+			name:                "canceled status sets not_planned state_reason",
+			toduStatus:          "canceled",
+			expectedState:       "closed",
 			expectedStateReason: github.String("not_planned"),
 		},
 		{
-			name:              "active status does not set state_reason",
-			toduStatus:        "active",
-			expectedState:     "open",
+			name:                "active status does not set state_reason",
+			toduStatus:          "active",
+			expectedState:       "open",
 			expectedStateReason: nil,
 		},
 		{
-			name:              "inprogress status does not set state_reason",
-			toduStatus:        "inprogress",
-			expectedState:     "open",
+			name:                "inprogress status does not set state_reason",
+			toduStatus:          "inprogress",
+			expectedState:       "open",
 			expectedStateReason: nil,
 		},
 	}
