@@ -173,6 +173,7 @@ func (c *Client) DeleteSystem(ctx context.Context, id int) error {
 type ProjectListOptions struct {
 	SystemID *int
 	Priority []string
+	Status   []string
 }
 
 // ListProjects retrieves all projects, optionally filtered
@@ -186,6 +187,11 @@ func (c *Client) ListProjects(ctx context.Context, opts *ProjectListOptions) ([]
 		if len(opts.Priority) > 0 {
 			for _, p := range opts.Priority {
 				path += fmt.Sprintf("priority=%s&", p)
+			}
+		}
+		if len(opts.Status) > 0 {
+			for _, s := range opts.Status {
+				path += fmt.Sprintf("status=%s&", s)
 			}
 		}
 	}

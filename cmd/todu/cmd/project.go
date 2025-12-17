@@ -89,6 +89,8 @@ projects and shows which ones are already registered in todu.`,
 var (
 	projectListSystem         string
 	projectListPriority       []string
+	projectListStatus         string
+	projectListAll            bool
 	projectAddSystem          string
 	projectAddExternalID      string
 	projectAddName            string
@@ -119,6 +121,8 @@ func init() {
 	// project list flags
 	projectListCmd.Flags().StringVar(&projectListSystem, "system", "", "Filter by system ID or name")
 	projectListCmd.Flags().StringSliceVar(&projectListPriority, "priority", nil, "Filter by priority (low, medium, high) - can be specified multiple times")
+	projectListCmd.Flags().StringVar(&projectListStatus, "status", "active", "Filter by status (active, done, cancelled)")
+	projectListCmd.Flags().BoolVar(&projectListAll, "all", false, "Show all projects regardless of status")
 
 	// project add flags
 	projectAddCmd.Flags().StringVar(&projectAddSystem, "system", "local", "System ID or name (default: local)")
@@ -165,6 +169,10 @@ func runProjectList(cmd *cobra.Command, args []string) error {
 	}
 	if len(projectListPriority) > 0 {
 		opts.Priority = projectListPriority
+	}
+	// Apply status filter unless --all is specified
+	if !projectListAll && projectListStatus != "" {
+		opts.Status = []string{projectListStatus}
 	}
 
 	projects, err := client.ListProjects(context.Background(), opts)
