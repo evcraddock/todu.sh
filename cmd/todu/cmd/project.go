@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"text/tabwriter"
 
@@ -170,6 +171,9 @@ func runProjectList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to list projects: %w", err)
 	}
+
+	// Sort by priority (high > medium > low > nil), then by status (active first)
+	sortProjectsByPriorityAndStatus(projects)
 
 	// Fetch all systems to map IDs to names
 	systems, err := client.ListSystems(context.Background())
@@ -651,4 +655,39 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// statusValue returns a numeric value for sorting (higher = more active)
+func statusValue(status string) int {
+	switch status {
+	case "active":
+		return 3
+	case "done":
+		return 2
+	case "cancelled":
+		return 1
+	default:
+		return 0
+	}
+}
+
+// sortProjectsByPriorityAndStatus sorts projects by priority (high > medium > low > nil),
+// then by status (active > done > cancelled), then by ID for consistent ordering
+func sortProjectsByPriorityAndStatus(projects []*types.Project) {
+	sort.Slice(projects, func(i, j int) bool {
+		// First compare by priority
+		pi := priorityValue(projects[i].Priority)
+		pj := priorityValue(projects[j].Priority)
+		if pi != pj {
+			return pi > pj // Higher priority first
+		}
+		// Then compare by status
+		si := statusValue(projects[i].Status)
+		sj := statusValue(projects[j].Status)
+		if si != sj {
+			return si > sj // More active status first
+		}
+		// Same priority and status: sort by ID
+		return projects[i].ID < projects[j].ID
+	})
 }
