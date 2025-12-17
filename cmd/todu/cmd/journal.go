@@ -451,7 +451,7 @@ func runJournalDelete(cmd *cobra.Command, args []string) error {
 	if !journalDeleteForce {
 		fmt.Printf("Are you sure you want to delete journal entry #%d? (y/N): ", entryID)
 		var response string
-		fmt.Scanln(&response)
+		_, _ = fmt.Scanln(&response)
 		if strings.ToLower(response) != "y" {
 			fmt.Println("Deletion cancelled")
 			return nil

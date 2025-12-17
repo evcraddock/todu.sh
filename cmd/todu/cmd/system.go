@@ -96,8 +96,8 @@ func init() {
 	systemAddCmd.Flags().StringVar(&systemAddName, "name", "", "Display name for the system (required)")
 	systemAddCmd.Flags().StringVar(&systemAddURL, "url", "", "API URL for the system")
 	systemAddCmd.Flags().StringArrayVar(&systemAddMetadata, "metadata", []string{}, "Metadata key=value pairs (repeatable)")
-	systemAddCmd.MarkFlagRequired("identifier")
-	systemAddCmd.MarkFlagRequired("name")
+	_ = systemAddCmd.MarkFlagRequired("identifier")
+	_ = systemAddCmd.MarkFlagRequired("name")
 
 	// system remove flags
 	systemRemoveCmd.Flags().BoolVar(&systemRemoveForce, "force", false, "Skip confirmation prompt")

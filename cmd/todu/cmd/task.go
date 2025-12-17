@@ -215,7 +215,7 @@ func init() {
 	// Move command and flags
 	taskCmd.AddCommand(taskMoveCmd)
 	taskMoveCmd.Flags().StringVarP(&taskMoveProject, "project", "p", "", "Target project ID or name (required)")
-	taskMoveCmd.MarkFlagRequired("project")
+	_ = taskMoveCmd.MarkFlagRequired("project")
 }
 
 func runTaskList(cmd *cobra.Command, args []string) error {

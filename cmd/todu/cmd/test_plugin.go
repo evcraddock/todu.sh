@@ -11,7 +11,7 @@ import (
 // Register test plugins for development
 func init() {
 	// Register a test plugin
-	registry.Register("test", func() plugin.Plugin {
+	_ = registry.Register("test", func() plugin.Plugin {
 		return plugin.NewMockPlugin("test")
 	})
 }

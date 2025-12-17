@@ -41,7 +41,7 @@ func TestListSystems(t *testing.T) {
 			t.Errorf("Expected GET request, got '%s'", r.Method)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(systems)
+		_ = json.NewEncoder(w).Encode(systems)
 	}))
 	defer server.Close()
 
@@ -77,7 +77,7 @@ func TestGetSystem(t *testing.T) {
 			t.Errorf("Expected GET request, got '%s'", r.Method)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(system)
+		_ = json.NewEncoder(w).Encode(system)
 	}))
 	defer server.Close()
 
@@ -142,7 +142,7 @@ func TestCreateSystem(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(created)
+		_ = json.NewEncoder(w).Encode(created)
 	}))
 	defer server.Close()
 
@@ -364,7 +364,7 @@ func TestCreateProject(t *testing.T) {
 		}
 
 		var received types.ProjectCreate
-		json.NewDecoder(r.Body).Decode(&received)
+		_ = json.NewDecoder(r.Body).Decode(&received)
 		if received.Name != "My Project" {
 			t.Errorf("Expected name 'My Project', got '%s'", received.Name)
 		}
@@ -730,7 +730,7 @@ func TestCreateComment(t *testing.T) {
 		}
 
 		var received types.CommentCreate
-		json.NewDecoder(r.Body).Decode(&received)
+		_ = json.NewDecoder(r.Body).Decode(&received)
 		if received.Content != "Test comment" {
 			t.Errorf("Expected content 'Test comment', got '%s'", received.Content)
 		}

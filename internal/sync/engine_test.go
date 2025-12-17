@@ -30,8 +30,7 @@ func setupTestEngine(t *testing.T) (*Engine, *httptest.Server, *plugin.MockPlugi
 		sharedMockPlugin.Reset()
 	}
 
-	var server *httptest.Server
-	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handleMockAPI(t, w, r)
 	}))
 

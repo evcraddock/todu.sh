@@ -127,7 +127,7 @@ func init() {
 	projectAddCmd.Flags().StringVar(&projectAddStatus, "status", "active", "Project status")
 	projectAddCmd.Flags().StringVar(&projectAddPriority, "priority", "", "Project priority (low, medium, high)")
 	projectAddCmd.Flags().StringVar(&projectAddSyncStrategy, "sync-strategy", "bidirectional", "Sync strategy (pull, push, or bidirectional)")
-	projectAddCmd.MarkFlagRequired("name")
+	_ = projectAddCmd.MarkFlagRequired("name")
 
 	// project update flags
 	projectUpdateCmd.Flags().StringVar(&projectUpdateName, "name", "", "Project name")
@@ -143,7 +143,7 @@ func init() {
 	// project discover flags
 	projectDiscoverCmd.Flags().StringVar(&projectDiscoverSystem, "system", "", "System ID or name (required)")
 	projectDiscoverCmd.Flags().BoolVar(&projectDiscoverAutoImport, "auto-import", false, "Automatically import all discovered projects")
-	projectDiscoverCmd.MarkFlagRequired("system")
+	_ = projectDiscoverCmd.MarkFlagRequired("system")
 }
 
 func runProjectList(cmd *cobra.Command, args []string) error {
@@ -470,7 +470,7 @@ func runProjectRemove(cmd *cobra.Command, args []string) error {
 	if !projectRemoveForce {
 		fmt.Printf("Are you sure you want to remove project %d (%s)? [y/N]: ", projectID, project.Name)
 		var response string
-		fmt.Scanln(&response)
+		_, _ = fmt.Scanln(&response)
 		response = strings.ToLower(strings.TrimSpace(response))
 		if response != "y" && response != "yes" {
 			fmt.Println("Cancelled")
@@ -501,7 +501,7 @@ func runProjectRemove(cmd *cobra.Command, args []string) error {
 			if !projectRemoveForce && !projectRemoveCascade {
 				fmt.Fprintf(os.Stderr, "\nWould you like to delete the project and all its tasks now? [y/N]: ")
 				var response string
-				fmt.Scanln(&response)
+				_, _ = fmt.Scanln(&response)
 				response = strings.ToLower(strings.TrimSpace(response))
 				if response == "y" || response == "yes" {
 					// Retry with cascade

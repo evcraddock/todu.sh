@@ -53,7 +53,7 @@ func TestMockPluginValidateConfig(t *testing.T) {
 	}
 
 	// Should succeed with token
-	mock.Configure(map[string]string{"token": "test-token"})
+	_ = mock.Configure(map[string]string{"token": "test-token"})
 	err = mock.ValidateConfig()
 	if err != nil {
 		t.Errorf("Expected no error with token configured, got %v", err)

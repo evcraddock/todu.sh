@@ -114,7 +114,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 	maxBackoff := 5 * time.Minute
 
 	// Run first sync immediately
-	d.runSync(ctx)
+	_ = d.runSync(ctx)
 
 	// Main daemon loop
 	ticker := time.NewTicker(interval)
