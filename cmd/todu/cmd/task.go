@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -330,6 +331,9 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 	// Apply filters
 	tasks = filterTasks(tasks)
 
+	// Sort by priority (high > medium > low > nil)
+	sortTasksByPriority(tasks)
+
 	// Limit results
 	if taskListLimit > 0 && len(tasks) > taskListLimit {
 		tasks = tasks[:taskListLimit]
@@ -422,6 +426,36 @@ func filterTasks(tasks []*types.Task) []*types.Task {
 	}
 
 	return filtered
+}
+
+// priorityValue returns a numeric value for sorting (higher = more important)
+func priorityValue(p *string) int {
+	if p == nil {
+		return 0
+	}
+	switch *p {
+	case "high":
+		return 3
+	case "medium":
+		return 2
+	case "low":
+		return 1
+	default:
+		return 0
+	}
+}
+
+// sortTasksByPriority sorts tasks by priority (high > medium > low > nil)
+// Tasks with same priority are sorted by ID for consistent ordering
+func sortTasksByPriority(tasks []*types.Task) {
+	sort.Slice(tasks, func(i, j int) bool {
+		pi := priorityValue(tasks[i].Priority)
+		pj := priorityValue(tasks[j].Priority)
+		if pi != pj {
+			return pi > pj // Higher priority first
+		}
+		return tasks[i].ID < tasks[j].ID // Same priority: sort by ID
+	})
 }
 
 func displayTasksTable(ctx context.Context, apiClient *api.Client, tasks []*types.Task) error {
