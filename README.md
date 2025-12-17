@@ -21,44 +21,8 @@ A command-line tool for synchronizing tasks across multiple systems
 
 ### Installation
 
-#### Quick Install (Recommended)
-
 ```bash
 curl -fsSL https://raw.githubusercontent.com/evcraddock/todu.sh/main/install.sh | sh
-```
-
-This automatically detects your platform and uses `go install` if Go is
-available (no sudo required), otherwise downloads the pre-built binary.
-
-#### Using Go
-
-```bash
-go install github.com/evcraddock/todu.sh/cmd/todu@latest
-```
-
-#### Manual Download
-
-Download from [Releases](https://github.com/evcraddock/todu.sh/releases/latest):
-
-| Platform | File |
-|----------|------|
-| Linux (amd64) | `todu_VERSION_linux_amd64.tar.gz` |
-| Linux (arm64) | `todu_VERSION_linux_arm64.tar.gz` |
-| macOS (Intel) | `todu_VERSION_darwin_amd64.tar.gz` |
-| macOS (Apple Silicon) | `todu_VERSION_darwin_arm64.tar.gz` |
-
-```bash
-tar -xzf todu_*.tar.gz
-sudo mv todu /usr/local/bin/
-```
-
-#### Build from Source
-
-```bash
-git clone https://github.com/evcraddock/todu.sh
-cd todu.sh
-make build
-sudo mv .build/todu /usr/local/bin/
 ```
 
 #### Verify Installation
