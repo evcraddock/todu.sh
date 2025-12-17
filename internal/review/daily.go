@@ -113,6 +113,11 @@ func DailyReport(ctx context.Context, client *api.Client, targetDate time.Time, 
 
 // SaveDailyReport saves the daily review markdown to a file
 func SaveDailyReport(markdown, outputPath string) error {
+	return SaveReport(markdown, outputPath)
+}
+
+// SaveReport saves markdown content to a file
+func SaveReport(markdown, outputPath string) error {
 	outputPath = expandPath(outputPath)
 	outputDir := filepath.Dir(outputPath)
 
