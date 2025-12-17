@@ -76,6 +76,21 @@ lint-ci: ## Run golangci-lint (requires golangci-lint installed)
 tidy: ## Tidy go.mod
 	$(GO) mod tidy
 
+.PHONY: hooks
+hooks: ## Install git hooks via lefthook
+	@if command -v lefthook >/dev/null 2>&1; then \
+		lefthook install; \
+	else \
+		echo "lefthook not installed. Run: go install github.com/evilmartians/lefthook@latest"; \
+		exit 1; \
+	fi
+
+.PHONY: hooks-uninstall
+hooks-uninstall: ## Uninstall git hooks
+	@if command -v lefthook >/dev/null 2>&1; then \
+		lefthook uninstall; \
+	fi
+
 .PHONY: verify
 verify: fmt vet test ## Run format, vet, and test
 

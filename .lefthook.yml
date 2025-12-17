@@ -1,0 +1,28 @@
+# Lefthook configuration for git hooks
+# Install hooks with: lefthook install
+
+pre-commit:
+  parallel: true
+  commands:
+    fmt:
+      glob: "*.go"
+      run: |
+        files=$(gofmt -l {staged_files})
+        if [ -n "$files" ]; then
+          echo "Not formatted:"
+          echo "$files"
+          exit 1
+        fi
+
+    vet:
+      glob: "*.go"
+      run: go vet ./...
+
+    lint:
+      glob: "*.go"
+      run: golangci-lint run ./...
+
+pre-push:
+  commands:
+    test:
+      run: go test -race -short ./...
