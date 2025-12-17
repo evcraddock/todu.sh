@@ -96,8 +96,8 @@ func init() {
 	systemAddCmd.Flags().StringVar(&systemAddName, "name", "", "Display name for the system (required)")
 	systemAddCmd.Flags().StringVar(&systemAddURL, "url", "", "API URL for the system")
 	systemAddCmd.Flags().StringArrayVar(&systemAddMetadata, "metadata", []string{}, "Metadata key=value pairs (repeatable)")
-	systemAddCmd.MarkFlagRequired("identifier")
-	systemAddCmd.MarkFlagRequired("name")
+	_ = systemAddCmd.MarkFlagRequired("identifier")
+	_ = systemAddCmd.MarkFlagRequired("name")
 
 	// system remove flags
 	systemRemoveCmd.Flags().BoolVar(&systemRemoveForce, "force", false, "Skip confirmation prompt")
@@ -383,7 +383,7 @@ func runSystemRemove(cmd *cobra.Command, args []string) error {
 	if !systemRemoveForce {
 		fmt.Printf("Are you sure you want to remove system %d (%s)? [y/N]: ", id, system.Name)
 		var response string
-		fmt.Scanln(&response)
+		_, _ = fmt.Scanln(&response)
 		response = strings.ToLower(strings.TrimSpace(response))
 		if response != "y" && response != "yes" {
 			fmt.Println("Cancelled")

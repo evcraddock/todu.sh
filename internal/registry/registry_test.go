@@ -102,7 +102,7 @@ func TestListPlugins(t *testing.T) {
 	// Add plugins
 	plugins := []string{"github", "forgejo", "todoist"}
 	for _, name := range plugins {
-		reg.Register(name, func() plugin.Plugin {
+		_ = reg.Register(name, func() plugin.Plugin {
 			return plugin.NewMockPlugin(name)
 		})
 	}
@@ -126,7 +126,7 @@ func TestCreatePlugin(t *testing.T) {
 	reg := New()
 
 	// Register a plugin
-	reg.Register("test-plugin", func() plugin.Plugin {
+	_ = reg.Register("test-plugin", func() plugin.Plugin {
 		return plugin.NewMockPlugin("test")
 	})
 
@@ -165,7 +165,7 @@ func TestCreateWithConfigurationError(t *testing.T) {
 	reg := New()
 
 	// Register a plugin
-	reg.Register("test-plugin", func() plugin.Plugin {
+	_ = reg.Register("test-plugin", func() plugin.Plugin {
 		mock := plugin.NewMockPlugin("test")
 		// Inject a configuration error
 		mock.ConfigureError = plugin.NewErrNotConfigured("test error")

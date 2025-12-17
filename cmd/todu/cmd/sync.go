@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
 	"text/tabwriter"
 	"time"
 
@@ -175,8 +174,8 @@ func runSyncStatus(cmd *cobra.Command, args []string) error {
 
 	now := time.Now()
 	for _, project := range projects {
-		lastSync := "Never"
-		status := "⚠️  Not synced"
+		var lastSync string
+		var status string
 
 		// Note: Last sync time would be stored in project metadata
 		// For now, we'll use the UpdatedAt field as a proxy
@@ -279,13 +278,4 @@ func formatDuration(d time.Duration) string {
 		}
 		return fmt.Sprintf("%d days", days)
 	}
-}
-
-// Helper to parse int from string argument
-func parseIntArg(arg string, name string) (int, error) {
-	id, err := strconv.Atoi(arg)
-	if err != nil {
-		return 0, fmt.Errorf("invalid %s: %s", name, arg)
-	}
-	return id, nil
 }

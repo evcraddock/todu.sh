@@ -173,7 +173,7 @@ func TestDaemonExponentialBackoff(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	daemon.Start(ctx)
+	_ = daemon.Start(ctx)
 	duration := time.Since(start)
 
 	// First sync happens immediately (fails)
@@ -215,7 +215,7 @@ func TestDaemonStatusFile(t *testing.T) {
 	defer cancel()
 
 	// Start daemon
-	daemon.Start(ctx)
+	_ = daemon.Start(ctx)
 
 	// Check status file was created
 	statusPath := filepath.Join(tempHome, ".config", "todu", "daemon.status")
@@ -258,7 +258,7 @@ func TestReadStatus(t *testing.T) {
 
 	// Create status file
 	statusPath := filepath.Join(tempHome, ".config", "todu", "daemon.status")
-	os.MkdirAll(filepath.Dir(statusPath), 0755)
+	_ = os.MkdirAll(filepath.Dir(statusPath), 0755)
 
 	testStatus := Status{
 		Running:      true,
@@ -267,7 +267,7 @@ func TestReadStatus(t *testing.T) {
 	}
 
 	data, _ := json.Marshal(testStatus)
-	os.WriteFile(statusPath, data, 0644)
+	_ = os.WriteFile(statusPath, data, 0644)
 
 	// Read status file
 	status, err = ReadStatus()
@@ -352,7 +352,7 @@ func TestDaemonProjectFiltering(t *testing.T) {
 	defer cancel()
 
 	// Start daemon
-	daemon.Start(ctx)
+	_ = daemon.Start(ctx)
 
 	// Verify sync was called at least once
 	if engine.syncCount < 1 {

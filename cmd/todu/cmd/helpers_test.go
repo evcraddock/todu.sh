@@ -17,12 +17,12 @@ func TestEnsureLocalSystem_CreatesWhenNotExist(t *testing.T) {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/systems/":
 			// First call: list systems (empty)
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte("[]"))
+			_, _ = w.Write([]byte("[]"))
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/systems/":
 			// Second call: create system
 			callCount++
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"id": 1, "identifier": "local", "name": "Local Tasks", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}`))
+			_, _ = w.Write([]byte(`{"id": 1, "identifier": "local", "name": "Local Tasks", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -51,7 +51,7 @@ func TestEnsureLocalSystem_ReturnsExistingID(t *testing.T) {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/systems/":
 			// Return existing local system
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`[{"id": 42, "identifier": "local", "name": "Local Tasks", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}]`))
+			_, _ = w.Write([]byte(`[{"id": 42, "identifier": "local", "name": "Local Tasks", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}]`))
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/systems/":
 			createCalled = true
 			w.WriteHeader(http.StatusBadRequest)
@@ -92,7 +92,7 @@ func TestResolveSystemID_WithIdentifier(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/systems/" {
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`[
+			_, _ = w.Write([]byte(`[
 				{"id": 1, "identifier": "github", "name": "GitHub", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"},
 				{"id": 2, "identifier": "forgejo", "name": "Forgejo", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}
 			]`))
@@ -115,7 +115,7 @@ func TestResolveSystemID_NotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/systems/" {
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`[{"id": 1, "identifier": "github", "name": "GitHub", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}]`))
+			_, _ = w.Write([]byte(`[{"id": 1, "identifier": "github", "name": "GitHub", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}]`))
 		}
 	}))
 	defer server.Close()
@@ -147,7 +147,7 @@ func TestEnsureDefaultProject_ReturnsExistingID(t *testing.T) {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/projects/":
 			// Return existing project
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`[{"id": 10, "name": "Inbox", "system_id": 1, "external_id": "test", "status": "active", "sync_strategy": "bidirectional", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}]`))
+			_, _ = w.Write([]byte(`[{"id": 10, "name": "Inbox", "system_id": 1, "external_id": "test", "status": "active", "sync_strategy": "bidirectional", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}]`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -171,7 +171,7 @@ func TestEnsureDefaultProject_CaseInsensitiveMatch(t *testing.T) {
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/projects/":
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`[{"id": 15, "name": "INBOX", "system_id": 1, "external_id": "test", "status": "active", "sync_strategy": "bidirectional", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}]`))
+			_, _ = w.Write([]byte(`[{"id": 15, "name": "INBOX", "system_id": 1, "external_id": "test", "status": "active", "sync_strategy": "bidirectional", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}]`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -196,15 +196,15 @@ func TestEnsureDefaultProject_CreatesWhenNotExist(t *testing.T) {
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/projects/":
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte("[]"))
+			_, _ = w.Write([]byte("[]"))
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/systems/":
 			// Return existing local system
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`[{"id": 1, "identifier": "local", "name": "Local Tasks", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}]`))
+			_, _ = w.Write([]byte(`[{"id": 1, "identifier": "local", "name": "Local Tasks", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}]`))
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/projects/":
 			projectCreateCalled = true
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"id": 20, "name": "Inbox", "system_id": 1, "external_id": "uuid", "status": "active", "sync_strategy": "bidirectional", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}`))
+			_, _ = w.Write([]byte(`{"id": 20, "name": "Inbox", "system_id": 1, "external_id": "uuid", "status": "active", "sync_strategy": "bidirectional", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -233,18 +233,18 @@ func TestEnsureDefaultProject_CreatesLocalSystem(t *testing.T) {
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/projects/":
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte("[]"))
+			_, _ = w.Write([]byte("[]"))
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/systems/":
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte("[]"))
+			_, _ = w.Write([]byte("[]"))
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/systems/":
 			systemCreateCalled = true
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"id": 1, "identifier": "local", "name": "Local Tasks", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}`))
+			_, _ = w.Write([]byte(`{"id": 1, "identifier": "local", "name": "Local Tasks", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}`))
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/projects/":
 			projectCreateCalled = true
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"id": 25, "name": "Inbox", "system_id": 1, "external_id": "uuid", "status": "active", "sync_strategy": "bidirectional", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}`))
+			_, _ = w.Write([]byte(`{"id": 25, "name": "Inbox", "system_id": 1, "external_id": "uuid", "status": "active", "sync_strategy": "bidirectional", "created_at": "2025-01-01T00:00:00Z", "updated_at": "2025-01-01T00:00:00Z"}`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}

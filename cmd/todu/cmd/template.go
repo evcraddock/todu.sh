@@ -348,15 +348,6 @@ func runTemplateShow(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func displayTemplateJSON(template *types.RecurringTaskTemplate) error {
-	data, err := json.MarshalIndent(template, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %w", err)
-	}
-	fmt.Println(string(data))
-	return nil
-}
-
 func displayTemplateWithTasksJSON(template *types.RecurringTaskTemplate, tasks []*types.Task) error {
 	output := map[string]interface{}{
 		"template": template,
@@ -719,7 +710,7 @@ func runTemplateDelete(cmd *cobra.Command, args []string) error {
 	if !templateDeleteForce {
 		fmt.Printf("Are you sure you want to delete template #%d? (y/N): ", templateID)
 		var response string
-		fmt.Scanln(&response)
+		_, _ = fmt.Scanln(&response)
 		if strings.ToLower(response) != "y" {
 			fmt.Println("Deletion cancelled")
 			return nil

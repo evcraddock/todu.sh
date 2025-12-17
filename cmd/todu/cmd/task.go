@@ -215,7 +215,7 @@ func init() {
 	// Move command and flags
 	taskCmd.AddCommand(taskMoveCmd)
 	taskMoveCmd.Flags().StringVarP(&taskMoveProject, "project", "p", "", "Target project ID or name (required)")
-	taskMoveCmd.MarkFlagRequired("project")
+	_ = taskMoveCmd.MarkFlagRequired("project")
 }
 
 func runTaskList(cmd *cobra.Command, args []string) error {
@@ -947,7 +947,7 @@ func runTaskDelete(cmd *cobra.Command, args []string) error {
 	if !taskDeleteForce {
 		fmt.Printf("Are you sure you want to delete task #%d? (y/N): ", taskID)
 		var response string
-		fmt.Scanln(&response)
+		_, _ = fmt.Scanln(&response)
 		if strings.ToLower(response) != "y" {
 			fmt.Println("Deletion cancelled")
 			return nil
