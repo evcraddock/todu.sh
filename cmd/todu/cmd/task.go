@@ -947,7 +947,7 @@ func runTaskDelete(cmd *cobra.Command, args []string) error {
 	if !taskDeleteForce {
 		fmt.Printf("Are you sure you want to delete task #%d? (y/N): ", taskID)
 		var response string
-		fmt.Scanln(&response)
+		_, _ = fmt.Scanln(&response)
 		if strings.ToLower(response) != "y" {
 			fmt.Println("Deletion cancelled")
 			return nil

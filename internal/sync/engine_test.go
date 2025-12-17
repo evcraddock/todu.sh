@@ -39,7 +39,7 @@ func setupTestEngine(t *testing.T) (*Engine, *httptest.Server, *plugin.MockPlugi
 
 	// Create registry and register mock plugin factory that returns the shared instance
 	reg := registry.New()
-	reg.Register("test-system", func() plugin.Plugin {
+	_ = reg.Register("test-system", func() plugin.Plugin {
 		return sharedMockPlugin
 	})
 
@@ -66,7 +66,7 @@ func handleMockAPI(t *testing.T, w http.ResponseWriter, r *http.Request) {
 				UpdatedAt:    time.Now(),
 			},
 		}
-		json.NewEncoder(w).Encode(projects)
+		_ = json.NewEncoder(w).Encode(projects)
 
 	case r.Method == "GET" && r.URL.Path == "/api/v1/projects/1":
 		// Get project
@@ -80,7 +80,7 @@ func handleMockAPI(t *testing.T, w http.ResponseWriter, r *http.Request) {
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
-		json.NewEncoder(w).Encode(project)
+		_ = json.NewEncoder(w).Encode(project)
 
 	case r.Method == "GET" && r.URL.Path == "/api/v1/systems/1":
 		// Get system
@@ -93,7 +93,7 @@ func handleMockAPI(t *testing.T, w http.ResponseWriter, r *http.Request) {
 			CreatedAt:  time.Now(),
 			UpdatedAt:  time.Now(),
 		}
-		json.NewEncoder(w).Encode(system)
+		_ = json.NewEncoder(w).Encode(system)
 
 	case r.Method == "GET" && r.URL.Path == "/api/v1/tasks/":
 		// List tasks
@@ -103,7 +103,7 @@ func handleMockAPI(t *testing.T, w http.ResponseWriter, r *http.Request) {
 			Skip:  0,
 			Limit: 100,
 		}
-		json.NewEncoder(w).Encode(tasksResp)
+		_ = json.NewEncoder(w).Encode(tasksResp)
 
 	case r.Method == "POST" && r.URL.Path == "/api/v1/tasks/":
 		// Create task
@@ -140,7 +140,7 @@ func handleMockAPI(t *testing.T, w http.ResponseWriter, r *http.Request) {
 			Labels:      labels,
 			Assignees:   assignees,
 		}
-		json.NewEncoder(w).Encode(task)
+		_ = json.NewEncoder(w).Encode(task)
 
 	case r.Method == "PUT" && r.URL.Path == "/api/v1/tasks/1":
 		// Update task
@@ -176,12 +176,12 @@ func handleMockAPI(t *testing.T, w http.ResponseWriter, r *http.Request) {
 			Labels:      labels,
 			Assignees:   assignees,
 		}
-		json.NewEncoder(w).Encode(task)
+		_ = json.NewEncoder(w).Encode(task)
 
 	case r.Method == "GET" && r.URL.Path == "/api/v1/tasks/1/comments":
 		// List comments for task
 		comments := []*types.Comment{}
-		json.NewEncoder(w).Encode(comments)
+		_ = json.NewEncoder(w).Encode(comments)
 
 	case r.Method == "POST" && r.URL.Path == "/api/v1/tasks/1/comments":
 		// Create comment
@@ -199,7 +199,7 @@ func handleMockAPI(t *testing.T, w http.ResponseWriter, r *http.Request) {
 			CreatedAt:  time.Now(),
 			UpdatedAt:  time.Now(),
 		}
-		json.NewEncoder(w).Encode(comment)
+		_ = json.NewEncoder(w).Encode(comment)
 
 	case r.Method == "PUT" && r.URL.Path == "/api/v1/comments/1":
 		// Update comment
@@ -218,7 +218,7 @@ func handleMockAPI(t *testing.T, w http.ResponseWriter, r *http.Request) {
 			CreatedAt:  time.Now().Add(-1 * time.Hour),
 			UpdatedAt:  time.Now(),
 		}
-		json.NewEncoder(w).Encode(comment)
+		_ = json.NewEncoder(w).Encode(comment)
 
 	default:
 		http.Error(w, "Not found", http.StatusNotFound)

@@ -121,7 +121,7 @@ func TestAuthorizationHeaderSetWithAPIKey(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedAuthHeader = r.Header.Get("Authorization")
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte("[]"))
+		_, _ = w.Write([]byte("[]"))
 	}))
 	defer server.Close()
 
@@ -140,7 +140,7 @@ func TestNoAuthorizationHeaderWithoutAPIKey(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedAuthHeader = r.Header.Get("Authorization")
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte("[]"))
+		_, _ = w.Write([]byte("[]"))
 	}))
 	defer server.Close()
 
@@ -155,7 +155,7 @@ func TestNoAuthorizationHeaderWithoutAPIKey(t *testing.T) {
 func TestAuth401ErrorMessage(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"detail": "Invalid API key"}`))
+		_, _ = w.Write([]byte(`{"detail": "Invalid API key"}`))
 	}))
 	defer server.Close()
 

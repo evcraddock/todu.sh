@@ -383,7 +383,7 @@ func runSystemRemove(cmd *cobra.Command, args []string) error {
 	if !systemRemoveForce {
 		fmt.Printf("Are you sure you want to remove system %d (%s)? [y/N]: ", id, system.Name)
 		var response string
-		fmt.Scanln(&response)
+		_, _ = fmt.Scanln(&response)
 		response = strings.ToLower(strings.TrimSpace(response))
 		if response != "y" && response != "yes" {
 			fmt.Println("Cancelled")

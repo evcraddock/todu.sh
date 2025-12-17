@@ -710,7 +710,7 @@ func runTemplateDelete(cmd *cobra.Command, args []string) error {
 	if !templateDeleteForce {
 		fmt.Printf("Are you sure you want to delete template #%d? (y/N): ", templateID)
 		var response string
-		fmt.Scanln(&response)
+		_, _ = fmt.Scanln(&response)
 		if strings.ToLower(response) != "y" {
 			fmt.Println("Deletion cancelled")
 			return nil

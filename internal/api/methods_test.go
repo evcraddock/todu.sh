@@ -98,7 +98,7 @@ func TestGetSystem(t *testing.T) {
 func TestGetSystem404(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("system not found"))
+		_, _ = w.Write([]byte("system not found"))
 	}))
 	defer server.Close()
 
@@ -191,7 +191,7 @@ func TestUpdateSystem(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(updated)
+		_ = json.NewEncoder(w).Encode(updated)
 	}))
 	defer server.Close()
 
@@ -252,7 +252,7 @@ func TestListProjects(t *testing.T) {
 			t.Errorf("Expected GET request, got '%s'", r.Method)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(projects)
+		_ = json.NewEncoder(w).Encode(projects)
 	}))
 	defer server.Close()
 
@@ -289,7 +289,7 @@ func TestListProjectsWithFilter(t *testing.T) {
 			t.Errorf("Expected path '%s', got '%s'", expectedPath, r.URL.Path+"?"+r.URL.RawQuery)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(projects)
+		_ = json.NewEncoder(w).Encode(projects)
 	}))
 	defer server.Close()
 
@@ -323,7 +323,7 @@ func TestGetProject(t *testing.T) {
 			t.Errorf("Expected path '/api/v1/projects/1', got '%s'", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(project)
+		_ = json.NewEncoder(w).Encode(project)
 	}))
 	defer server.Close()
 
@@ -370,7 +370,7 @@ func TestCreateProject(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(created)
+		_ = json.NewEncoder(w).Encode(created)
 	}))
 	defer server.Close()
 
@@ -406,7 +406,7 @@ func TestUpdateProject(t *testing.T) {
 		if r.Method != http.MethodPut {
 			t.Errorf("Expected PUT request, got '%s'", r.Method)
 		}
-		json.NewEncoder(w).Encode(updated)
+		_ = json.NewEncoder(w).Encode(updated)
 	}))
 	defer server.Close()
 
@@ -461,7 +461,7 @@ func TestListTasks(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(tasksResp)
+		_ = json.NewEncoder(w).Encode(tasksResp)
 	}))
 	defer server.Close()
 
@@ -502,7 +502,7 @@ func TestListTasksWithFilter(t *testing.T) {
 			t.Errorf("Expected query to contain 'project_id=1', got '%s'", r.URL.RawQuery)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(tasksResp)
+		_ = json.NewEncoder(w).Encode(tasksResp)
 	}))
 	defer server.Close()
 
@@ -534,7 +534,7 @@ func TestGetTask(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(task)
+		_ = json.NewEncoder(w).Encode(task)
 	}))
 	defer server.Close()
 
@@ -572,7 +572,7 @@ func TestCreateTask(t *testing.T) {
 			t.Errorf("Expected POST request, got '%s'", r.Method)
 		}
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(created)
+		_ = json.NewEncoder(w).Encode(created)
 	}))
 	defer server.Close()
 
@@ -607,7 +607,7 @@ func TestUpdateTask(t *testing.T) {
 		if r.Method != http.MethodPut {
 			t.Errorf("Expected PUT request, got '%s'", r.Method)
 		}
-		json.NewEncoder(w).Encode(updated)
+		_ = json.NewEncoder(w).Encode(updated)
 	}))
 	defer server.Close()
 
@@ -660,7 +660,7 @@ func TestListComments(t *testing.T) {
 			t.Errorf("Expected path '/api/v1/tasks/1/comments', got '%s'", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(comments)
+		_ = json.NewEncoder(w).Encode(comments)
 	}))
 	defer server.Close()
 
@@ -692,7 +692,7 @@ func TestGetComment(t *testing.T) {
 			t.Errorf("Expected path '/api/v1/comments/1', got '%s'", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(comment)
+		_ = json.NewEncoder(w).Encode(comment)
 	}))
 	defer server.Close()
 
@@ -736,7 +736,7 @@ func TestCreateComment(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(created)
+		_ = json.NewEncoder(w).Encode(created)
 	}))
 	defer server.Close()
 
@@ -776,7 +776,7 @@ func TestDeleteComment(t *testing.T) {
 func TestServerError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("internal server error"))
+		_, _ = w.Write([]byte("internal server error"))
 	}))
 	defer server.Close()
 
@@ -791,7 +791,7 @@ func TestServerError(t *testing.T) {
 func TestInvalidJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte("not valid json"))
+		_, _ = w.Write([]byte("not valid json"))
 	}))
 	defer server.Close()
 
@@ -843,7 +843,7 @@ func TestListTemplates(t *testing.T) {
 			t.Errorf("Expected GET request, got '%s'", r.Method)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(templates)
+		_ = json.NewEncoder(w).Encode(templates)
 	}))
 	defer server.Close()
 
@@ -892,7 +892,7 @@ func TestListTemplatesWithFilters(t *testing.T) {
 			t.Errorf("Expected query to contain 'template_type=task', got '%s'", r.URL.RawQuery)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(templates)
+		_ = json.NewEncoder(w).Encode(templates)
 	}))
 	defer server.Close()
 
@@ -936,7 +936,7 @@ func TestGetTemplate(t *testing.T) {
 			t.Errorf("Expected GET request, got '%s'", r.Method)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(template)
+		_ = json.NewEncoder(w).Encode(template)
 	}))
 	defer server.Close()
 
@@ -957,7 +957,7 @@ func TestGetTemplate(t *testing.T) {
 func TestGetTemplate404(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("template not found"))
+		_, _ = w.Write([]byte("template not found"))
 	}))
 	defer server.Close()
 
@@ -1015,7 +1015,7 @@ func TestCreateTemplate(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(created)
+		_ = json.NewEncoder(w).Encode(created)
 	}))
 	defer server.Close()
 
@@ -1072,7 +1072,7 @@ func TestUpdateTemplate(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(updated)
+		_ = json.NewEncoder(w).Encode(updated)
 	}))
 	defer server.Close()
 
