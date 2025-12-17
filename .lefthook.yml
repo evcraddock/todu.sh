@@ -28,6 +28,10 @@ pre-commit:
         fi
         golangci-lint run ./...
 
+    markdown:
+      glob: "*.md"
+      run: markdownlint-cli2 {staged_files}
+
 pre-push:
   commands:
     test:
