@@ -35,7 +35,14 @@ type dailyData struct {
 
 // habitStatus represents a habit and its completion status for the day
 type habitStatus struct {
+	taskID    int
 	name      string
+	completed bool
+}
+
+// habitTaskInfo holds the task ID and completion status for a habit
+type habitTaskInfo struct {
+	taskID    int
 	completed bool
 }
 
@@ -263,13 +270,16 @@ func buildHabitTemplateSet(habits []*types.RecurringTaskTemplate) map[int]struct
 	return habitTemplateIDs
 }
 
-// buildHabitTaskMap creates a map from template ID to completion status
-func buildHabitTaskMap(scheduledTasks []*types.Task, habitTemplateIDs map[int]struct{}) map[int]bool {
-	habitTasks := make(map[int]bool)
+// buildHabitTaskMap creates a map from template ID to task info (task ID and completion status)
+func buildHabitTaskMap(scheduledTasks []*types.Task, habitTemplateIDs map[int]struct{}) map[int]*habitTaskInfo {
+	habitTasks := make(map[int]*habitTaskInfo)
 	for _, t := range scheduledTasks {
 		if t.TemplateID != nil {
 			if _, isHabit := habitTemplateIDs[*t.TemplateID]; isHabit {
-				habitTasks[*t.TemplateID] = t.Status == "done"
+				habitTasks[*t.TemplateID] = &habitTaskInfo{
+					taskID:    t.ID,
+					completed: t.Status == "done",
+				}
 			}
 		}
 	}
@@ -277,11 +287,18 @@ func buildHabitTaskMap(scheduledTasks []*types.Task, habitTemplateIDs map[int]st
 }
 
 // buildDailyGoals builds the daily goals section from habits
-func buildDailyGoals(habits []*types.RecurringTaskTemplate, habitTasks map[int]bool) []*habitStatus {
+func buildDailyGoals(habits []*types.RecurringTaskTemplate, habitTasks map[int]*habitTaskInfo) []*habitStatus {
 	var goals []*habitStatus
 	for _, h := range habits {
-		completed := habitTasks[h.ID] // defaults to false if not in map
+		info := habitTasks[h.ID]
+		var taskID int
+		var completed bool
+		if info != nil {
+			taskID = info.taskID
+			completed = info.completed
+		}
 		goals = append(goals, &habitStatus{
+			taskID:    taskID,
 			name:      h.Title,
 			completed: completed,
 		})
@@ -441,7 +458,11 @@ func generateDailyMarkdown(data *dailyData) string {
 		sb.WriteString("0 tasks\n\n")
 	} else {
 		for _, h := range data.dailyGoals {
-			sb.WriteString(fmt.Sprintf("- %s : %t\n", h.name, h.completed))
+			if h.taskID > 0 {
+				sb.WriteString(fmt.Sprintf("- #%d %s : %t\n", h.taskID, h.name, h.completed))
+			} else {
+				sb.WriteString(fmt.Sprintf("- %s : %t\n", h.name, h.completed))
+			}
 		}
 		sb.WriteString(fmt.Sprintf("\n%d task", len(data.dailyGoals)))
 		if len(data.dailyGoals) != 1 {

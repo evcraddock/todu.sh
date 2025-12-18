@@ -120,11 +120,17 @@ func TestBuildHabitTaskMap(t *testing.T) {
 		t.Errorf("Expected 2 entries, got %d", len(result))
 	}
 
-	if !result[1] {
+	if result[1] == nil || !result[1].completed {
 		t.Error("Expected habit 1 to be completed (true)")
 	}
-	if result[2] {
+	if result[1] == nil || result[1].taskID != 100 {
+		t.Error("Expected habit 1 to have task ID 100")
+	}
+	if result[2] == nil || result[2].completed {
 		t.Error("Expected habit 2 to be not completed (false)")
+	}
+	if result[2] == nil || result[2].taskID != 101 {
+		t.Error("Expected habit 2 to have task ID 101")
 	}
 	if _, exists := result[3]; exists {
 		t.Error("Expected habit 3 to not be in map (no scheduled task)")
@@ -138,10 +144,10 @@ func TestBuildDailyGoals(t *testing.T) {
 		{ID: 3, Title: "Meditate"},
 	}
 
-	habitTasks := map[int]bool{
-		1: true,
-		2: false,
-		// 3 not in map, should default to false
+	habitTasks := map[int]*habitTaskInfo{
+		1: {taskID: 100, completed: true},
+		2: {taskID: 101, completed: false},
+		// 3 not in map, should default to taskID=0 and completed=false
 	}
 
 	result := buildDailyGoals(habits, habitTasks)
@@ -150,15 +156,22 @@ func TestBuildDailyGoals(t *testing.T) {
 		t.Errorf("Expected 3 goals, got %d", len(result))
 	}
 
-	expected := map[string]bool{
-		"Exercise": true,
-		"Read":     false,
-		"Meditate": false,
+	expected := map[string]struct {
+		taskID    int
+		completed bool
+	}{
+		"Exercise": {taskID: 100, completed: true},
+		"Read":     {taskID: 101, completed: false},
+		"Meditate": {taskID: 0, completed: false},
 	}
 
 	for _, g := range result {
-		if expected[g.name] != g.completed {
-			t.Errorf("Goal %q: expected completed=%t, got %t", g.name, expected[g.name], g.completed)
+		exp := expected[g.name]
+		if exp.completed != g.completed {
+			t.Errorf("Goal %q: expected completed=%t, got %t", g.name, exp.completed, g.completed)
+		}
+		if exp.taskID != g.taskID {
+			t.Errorf("Goal %q: expected taskID=%d, got %d", g.name, exp.taskID, g.taskID)
 		}
 	}
 }
@@ -269,8 +282,8 @@ func TestGenerateDailyMarkdown_WithData(t *testing.T) {
 			{ID: 1, Title: "Working on feature", ProjectID: 1},
 		},
 		dailyGoals: []*habitStatus{
-			{name: "Exercise", completed: true},
-			{name: "Read", completed: false},
+			{taskID: 10, name: "Exercise", completed: true},
+			{taskID: 11, name: "Read", completed: false},
 		},
 		comingUpSoon: []*types.Task{
 			{ID: 2, Title: "Due soon task", ProjectID: 1, DueDate: &dueDate},
@@ -296,11 +309,11 @@ func TestGenerateDailyMarkdown_WithData(t *testing.T) {
 	if !strings.Contains(result, "#1 Working on feature") {
 		t.Error("Expected in progress task to be listed")
 	}
-	if !strings.Contains(result, "Exercise : true") {
-		t.Error("Expected completed habit to show true")
+	if !strings.Contains(result, "#10 Exercise : true") {
+		t.Error("Expected completed habit to show task ID and true")
 	}
-	if !strings.Contains(result, "Read : false") {
-		t.Error("Expected incomplete habit to show false")
+	if !strings.Contains(result, "#11 Read : false") {
+		t.Error("Expected incomplete habit to show task ID and false")
 	}
 	if !strings.Contains(result, "#2 Due soon task") {
 		t.Error("Expected coming up soon task to be listed")
@@ -326,6 +339,31 @@ func TestGenerateDailyMarkdown_WithData(t *testing.T) {
 	}
 	if !strings.Contains(result, "2 tasks\n") {
 		t.Error("Expected '2 tasks' count for daily goals section")
+	}
+}
+
+func TestGenerateDailyMarkdown_HabitWithoutTaskID(t *testing.T) {
+	data := &dailyData{
+		targetDate: time.Now(),
+		inProgress: nil,
+		dailyGoals: []*habitStatus{
+			{taskID: 0, name: "Unscheduled habit", completed: false},
+		},
+		comingUpSoon: nil,
+		next:         nil,
+		waiting:      nil,
+		doneToday:    nil,
+		projectMap:   make(map[int]string),
+	}
+
+	result := generateDailyMarkdown(data)
+
+	// Habits without task ID should not show the # prefix
+	if !strings.Contains(result, "- Unscheduled habit : false") {
+		t.Error("Expected habit without task ID to be listed without # prefix")
+	}
+	if strings.Contains(result, "#0 Unscheduled habit") {
+		t.Error("Expected habit with taskID=0 to not show #0 prefix")
 	}
 }
 

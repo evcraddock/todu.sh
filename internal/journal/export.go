@@ -318,19 +318,18 @@ func generateMarkdown(data *exportData) string {
 	}
 	sb.WriteString("\n")
 
-	// Habits section
+	// Habits section - only include habits with instantiated tasks for this day
 	sb.WriteString("## Habits\n")
-	if len(data.habits) == 0 {
-		sb.WriteString("No Habits\n")
-	} else {
-		for _, h := range data.habits {
+	hasHabits := false
+	for _, h := range data.habits {
+		if info, hasTask := data.habitTasks[h.ID]; hasTask {
+			hasHabits = true
 			projectName := data.projectMap[h.ProjectID]
-			if info, hasTask := data.habitTasks[h.ID]; hasTask {
-				sb.WriteString(fmt.Sprintf("- #%d %s - %s:: %t\n", info.taskID, projectName, escapeMarkdown(h.Title), info.completed))
-			} else {
-				sb.WriteString(fmt.Sprintf("- %s - %s:: false\n", projectName, escapeMarkdown(h.Title)))
-			}
+			sb.WriteString(fmt.Sprintf("- #%d %s - %s:: %t\n", info.taskID, projectName, escapeMarkdown(h.Title), info.completed))
 		}
+	}
+	if !hasHabits {
+		sb.WriteString("No Habits\n")
 	}
 
 	return sb.String()

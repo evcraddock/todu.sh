@@ -356,9 +356,9 @@ func TestGenerateMarkdown_WithData(t *testing.T) {
 		t.Errorf("Expected completed habit with task ID in output")
 	}
 
-	// Check habit without task
-	if !contains(result, "- Personal - Evening review:: false") {
-		t.Errorf("Expected habit without task in output")
+	// Habits without instantiated tasks should NOT appear
+	if contains(result, "Evening review") {
+		t.Errorf("Habit without instantiated task should not appear in output")
 	}
 
 	// Verify habit tasks are excluded from completed section
