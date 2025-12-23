@@ -102,6 +102,7 @@ var (
 	journalListToday bool
 	journalListLast  int
 	journalListSince string
+	journalListUntil string
 	journalListLimit int
 	journalListType  string
 
@@ -129,6 +130,7 @@ func init() {
 	journalListCmd.Flags().BoolVar(&journalListToday, "today", false, "Show only today's entries")
 	journalListCmd.Flags().IntVar(&journalListLast, "last", 0, "Show last N days of entries")
 	journalListCmd.Flags().StringVar(&journalListSince, "since", "", "Show entries since date (YYYY-MM-DD)")
+	journalListCmd.Flags().StringVar(&journalListUntil, "until", "", "Show entries until date (YYYY-MM-DD)")
 	journalListCmd.Flags().IntVar(&journalListLimit, "limit", 50, "Maximum number of entries to show")
 	journalListCmd.Flags().StringVar(&journalListType, "type", "journal", "Filter by type: 'journal' (journal entries), 'comment' (task comments), or 'all'")
 
@@ -263,6 +265,17 @@ func filterJournalsByDate(entries []*types.Comment) []*types.Comment {
 			sinceDate, err := time.ParseInLocation("2006-01-02", journalListSince, time.Local)
 			if err == nil && entry.CreatedAt.Before(sinceDate) {
 				continue
+			}
+		}
+
+		// Until date filter (include entire day by checking against next day midnight)
+		if journalListUntil != "" {
+			untilDate, err := time.ParseInLocation("2006-01-02", journalListUntil, time.Local)
+			if err == nil {
+				untilEndOfDay := untilDate.AddDate(0, 0, 1)
+				if !entry.CreatedAt.Before(untilEndOfDay) {
+					continue
+				}
 			}
 		}
 
