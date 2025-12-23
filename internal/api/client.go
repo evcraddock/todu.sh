@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/evcraddock/todu.sh/pkg/types"
@@ -501,6 +502,45 @@ func (c *Client) DeleteComment(ctx context.Context, id int) error {
 	}
 
 	return parseResponse(resp, nil)
+}
+
+// CommentListOptions contains optional filters for listing comments/journals
+type CommentListOptions struct {
+	Type          string // "journal", "comment", or "all"
+	CreatedAfter  string // ISO date: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS
+	CreatedBefore string // ISO date: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS
+}
+
+// ListCommentsFiltered retrieves comments/journals with optional filters
+func (c *Client) ListCommentsFiltered(ctx context.Context, opts *CommentListOptions) ([]*types.Comment, error) {
+	path := "/api/v1/comments?"
+	params := []string{"limit=10000"} // large limit to get all entries
+
+	if opts != nil {
+		if opts.Type != "" {
+			params = append(params, fmt.Sprintf("type=%s", opts.Type))
+		}
+		if opts.CreatedAfter != "" {
+			params = append(params, fmt.Sprintf("created_after=%s", opts.CreatedAfter))
+		}
+		if opts.CreatedBefore != "" {
+			params = append(params, fmt.Sprintf("created_before=%s", opts.CreatedBefore))
+		}
+	}
+
+	path += strings.Join(params, "&")
+
+	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var comments []*types.Comment
+	if err := parseResponse(resp, &comments); err != nil {
+		return nil, err
+	}
+
+	return comments, nil
 }
 
 // ListJournals retrieves all journal entries (comments without task_id)
