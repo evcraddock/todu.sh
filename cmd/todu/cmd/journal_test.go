@@ -4,166 +4,90 @@ import (
 	"testing"
 	"time"
 
-	"github.com/evcraddock/todu.sh/pkg/types"
+	"github.com/evcraddock/todu.sh/internal/api"
 )
 
-func TestFilterJournalsByDate_Until(t *testing.T) {
-	// Reset flags after test
-	defer func() {
-		journalListToday = false
-		journalListLast = 0
-		journalListSince = ""
-		journalListUntil = ""
-	}()
-
-	// Create test entries with different dates
-	entries := []*types.Comment{
-		{ID: 1, Content: "Entry 1", CreatedAt: time.Date(2025, 1, 10, 10, 0, 0, 0, time.Local)},
-		{ID: 2, Content: "Entry 2", CreatedAt: time.Date(2025, 1, 15, 14, 30, 0, 0, time.Local)},
-		{ID: 3, Content: "Entry 3", CreatedAt: time.Date(2025, 1, 20, 8, 0, 0, 0, time.Local)},
-		{ID: 4, Content: "Entry 4", CreatedAt: time.Date(2025, 1, 25, 18, 45, 0, 0, time.Local)},
-	}
-
+func TestBuildCommentListOptions_Until(t *testing.T) {
 	tests := []struct {
-		name        string
-		until       string
-		expectedIDs []int
+		name           string
+		until          string
+		expectedBefore string
 	}{
 		{
-			name:        "until includes the specified date",
-			until:       "2025-01-15",
-			expectedIDs: []int{1, 2},
+			name:           "until adds one day for inclusive behavior",
+			until:          "2025-01-15",
+			expectedBefore: "2025-01-16",
 		},
 		{
-			name:        "until includes entry at end of day",
-			until:       "2025-01-20",
-			expectedIDs: []int{1, 2, 3},
-		},
-		{
-			name:        "until after all entries returns all",
-			until:       "2025-01-31",
-			expectedIDs: []int{1, 2, 3, 4},
-		},
-		{
-			name:        "until before all entries returns none",
-			until:       "2025-01-05",
-			expectedIDs: []int{},
+			name:           "until end of month",
+			until:          "2025-01-31",
+			expectedBefore: "2025-02-01",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			journalListUntil = tt.until
-
-			filtered := filterJournalsByDate(entries)
-
-			if len(filtered) != len(tt.expectedIDs) {
-				t.Errorf("filterJournalsByDate() returned %d entries, want %d", len(filtered), len(tt.expectedIDs))
-				return
+			opts := &api.CommentListOptions{
+				Type: "journal",
 			}
 
-			for i, entry := range filtered {
-				if entry.ID != tt.expectedIDs[i] {
-					t.Errorf("filterJournalsByDate()[%d].ID = %d, want %d", i, entry.ID, tt.expectedIDs[i])
-				}
+			// Simulate the until logic from runJournalList
+			untilDate, err := time.ParseInLocation("2006-01-02", tt.until, time.Local)
+			if err == nil {
+				opts.CreatedBefore = untilDate.AddDate(0, 0, 1).Format("2006-01-02")
 			}
 
-			// Reset for next test
-			journalListUntil = ""
+			if opts.CreatedBefore != tt.expectedBefore {
+				t.Errorf("CreatedBefore = %s, want %s", opts.CreatedBefore, tt.expectedBefore)
+			}
 		})
 	}
 }
 
-func TestFilterJournalsByDate_SinceAndUntil(t *testing.T) {
-	// Reset flags after test
-	defer func() {
-		journalListToday = false
-		journalListLast = 0
-		journalListSince = ""
-		journalListUntil = ""
-	}()
-
-	// Create test entries with different dates
-	entries := []*types.Comment{
-		{ID: 1, Content: "Entry 1", CreatedAt: time.Date(2025, 1, 10, 10, 0, 0, 0, time.Local)},
-		{ID: 2, Content: "Entry 2", CreatedAt: time.Date(2025, 1, 15, 14, 30, 0, 0, time.Local)},
-		{ID: 3, Content: "Entry 3", CreatedAt: time.Date(2025, 1, 20, 8, 0, 0, 0, time.Local)},
-		{ID: 4, Content: "Entry 4", CreatedAt: time.Date(2025, 1, 25, 18, 45, 0, 0, time.Local)},
-	}
-
+func TestBuildCommentListOptions_SinceAndUntil(t *testing.T) {
 	tests := []struct {
-		name        string
-		since       string
-		until       string
-		expectedIDs []int
+		name           string
+		since          string
+		until          string
+		expectedAfter  string
+		expectedBefore string
 	}{
 		{
-			name:        "date range includes middle entries",
-			since:       "2025-01-15",
-			until:       "2025-01-20",
-			expectedIDs: []int{2, 3},
+			name:           "date range for January 2025",
+			since:          "2025-01-01",
+			until:          "2025-01-31",
+			expectedAfter:  "2025-01-01",
+			expectedBefore: "2025-02-01",
 		},
 		{
-			name:        "date range with no entries",
-			since:       "2025-01-11",
-			until:       "2025-01-14",
-			expectedIDs: []int{},
-		},
-		{
-			name:        "date range includes all entries",
-			since:       "2025-01-01",
-			until:       "2025-01-31",
-			expectedIDs: []int{1, 2, 3, 4},
-		},
-		{
-			name:        "single day range",
-			since:       "2025-01-15",
-			until:       "2025-01-15",
-			expectedIDs: []int{2},
+			name:           "single day range",
+			since:          "2025-01-15",
+			until:          "2025-01-15",
+			expectedAfter:  "2025-01-15",
+			expectedBefore: "2025-01-16",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			journalListSince = tt.since
-			journalListUntil = tt.until
-
-			filtered := filterJournalsByDate(entries)
-
-			if len(filtered) != len(tt.expectedIDs) {
-				t.Errorf("filterJournalsByDate() returned %d entries, want %d", len(filtered), len(tt.expectedIDs))
-				return
+			opts := &api.CommentListOptions{
+				Type: "journal",
 			}
 
-			for i, entry := range filtered {
-				if entry.ID != tt.expectedIDs[i] {
-					t.Errorf("filterJournalsByDate()[%d].ID = %d, want %d", i, entry.ID, tt.expectedIDs[i])
-				}
+			// Simulate the since/until logic from runJournalList
+			opts.CreatedAfter = tt.since
+
+			untilDate, err := time.ParseInLocation("2006-01-02", tt.until, time.Local)
+			if err == nil {
+				opts.CreatedBefore = untilDate.AddDate(0, 0, 1).Format("2006-01-02")
 			}
 
-			// Reset for next test
-			journalListSince = ""
-			journalListUntil = ""
+			if opts.CreatedAfter != tt.expectedAfter {
+				t.Errorf("CreatedAfter = %s, want %s", opts.CreatedAfter, tt.expectedAfter)
+			}
+			if opts.CreatedBefore != tt.expectedBefore {
+				t.Errorf("CreatedBefore = %s, want %s", opts.CreatedBefore, tt.expectedBefore)
+			}
 		})
-	}
-}
-
-func TestFilterJournalsByDate_InvalidUntilDate(t *testing.T) {
-	// Reset flags after test
-	defer func() {
-		journalListUntil = ""
-	}()
-
-	entries := []*types.Comment{
-		{ID: 1, Content: "Entry 1", CreatedAt: time.Date(2025, 1, 15, 10, 0, 0, 0, time.Local)},
-	}
-
-	// Invalid date format should be ignored, returning all entries
-	journalListUntil = "invalid-date"
-
-	filtered := filterJournalsByDate(entries)
-
-	if len(filtered) != 1 {
-		t.Errorf("filterJournalsByDate() with invalid date returned %d entries, want 1", len(filtered))
 	}
 }

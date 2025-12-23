@@ -103,7 +103,6 @@ var (
 	journalListLast  int
 	journalListSince string
 	journalListUntil string
-	journalListLimit int
 	journalListType  string
 
 	// Delete flags
@@ -131,7 +130,6 @@ func init() {
 	journalListCmd.Flags().IntVar(&journalListLast, "last", 0, "Show last N days of entries")
 	journalListCmd.Flags().StringVar(&journalListSince, "since", "", "Show entries since date (YYYY-MM-DD)")
 	journalListCmd.Flags().StringVar(&journalListUntil, "until", "", "Show entries until date (YYYY-MM-DD)")
-	journalListCmd.Flags().IntVar(&journalListLimit, "limit", 50, "Maximum number of entries to show")
 	journalListCmd.Flags().StringVar(&journalListType, "type", "journal", "Filter by type: 'journal' (journal entries), 'comment' (task comments), or 'all'")
 
 	// Delete flags
@@ -213,19 +211,43 @@ func runJournalList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid type: %s (must be 'all', 'journal', or 'comment')", journalListType)
 	}
 
-	// Fetch entries based on type
-	var entries []*types.Comment
-	if journalListType == "journal" {
-		entries, err = apiClient.ListJournals(ctx, 0, journalListLimit)
-	} else {
-		entries, err = apiClient.ListAllComments(ctx, journalListType, 0, journalListLimit)
+	// Build API options with date filters
+	opts := &api.CommentListOptions{
+		Type: journalListType,
 	}
+
+	// Handle --today flag
+	if journalListToday {
+		today := time.Now().Format("2006-01-02")
+		tomorrow := time.Now().AddDate(0, 0, 1).Format("2006-01-02")
+		opts.CreatedAfter = today
+		opts.CreatedBefore = tomorrow
+	}
+
+	// Handle --last N days flag
+	if journalListLast > 0 {
+		cutoff := time.Now().AddDate(0, 0, -journalListLast).Format("2006-01-02")
+		opts.CreatedAfter = cutoff
+	}
+
+	// Handle --since flag (overrides --last if both specified)
+	if journalListSince != "" {
+		opts.CreatedAfter = journalListSince
+	}
+
+	// Handle --until flag (add one day to make it inclusive)
+	if journalListUntil != "" {
+		untilDate, err := time.ParseInLocation("2006-01-02", journalListUntil, time.Local)
+		if err == nil {
+			opts.CreatedBefore = untilDate.AddDate(0, 0, 1).Format("2006-01-02")
+		}
+	}
+
+	// Fetch entries with server-side filtering
+	entries, err := apiClient.ListCommentsFiltered(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("failed to list entries: %w", err)
 	}
-
-	// Apply date filters
-	entries = filterJournalsByDate(entries)
 
 	if len(entries) == 0 {
 		fmt.Println("No entries found")
@@ -238,57 +260,6 @@ func runJournalList(cmd *cobra.Command, args []string) error {
 	}
 
 	return displayJournalsTable(entries)
-}
-
-func filterJournalsByDate(entries []*types.Comment) []*types.Comment {
-	var filtered []*types.Comment
-	now := time.Now()
-
-	for _, entry := range entries {
-		// Today filter
-		if journalListToday {
-			if !isSameDay(entry.CreatedAt, now) {
-				continue
-			}
-		}
-
-		// Last N days filter
-		if journalListLast > 0 {
-			cutoff := now.AddDate(0, 0, -journalListLast)
-			if entry.CreatedAt.Before(cutoff) {
-				continue
-			}
-		}
-
-		// Since date filter (user input is local timezone, entry.CreatedAt is UTC)
-		if journalListSince != "" {
-			sinceDate, err := time.ParseInLocation("2006-01-02", journalListSince, time.Local)
-			if err == nil && entry.CreatedAt.Before(sinceDate) {
-				continue
-			}
-		}
-
-		// Until date filter (include entire day by checking against next day midnight)
-		if journalListUntil != "" {
-			untilDate, err := time.ParseInLocation("2006-01-02", journalListUntil, time.Local)
-			if err == nil {
-				untilEndOfDay := untilDate.AddDate(0, 0, 1)
-				if !entry.CreatedAt.Before(untilEndOfDay) {
-					continue
-				}
-			}
-		}
-
-		filtered = append(filtered, entry)
-	}
-
-	return filtered
-}
-
-func isSameDay(t1, t2 time.Time) bool {
-	y1, m1, d1 := t1.Date()
-	y2, m2, d2 := t2.Date()
-	return y1 == y2 && m1 == m2 && d1 == d2
 }
 
 func displayJournalsTable(entries []*types.Comment) error {
