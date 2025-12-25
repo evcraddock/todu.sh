@@ -221,6 +221,14 @@ func (d *Daemon) runSync(ctx context.Context) error {
 		Int("errors", result.TotalErrors).
 		Msg("Sync completed")
 
+	// Process recurring task templates if enabled (independent of sync errors)
+	if d.config.RecurringTasks.Enabled {
+		if err := d.processRecurringTasks(ctx); err != nil {
+			d.logger.Warn().Err(err).Msg("Failed to process recurring templates")
+			// Don't fail the entire sync - just log the error
+		}
+	}
+
 	if result.TotalErrors > 0 {
 		// Log detailed errors for each project (always log errors regardless of level)
 		for _, pr := range result.ProjectResults {
@@ -242,14 +250,6 @@ func (d *Daemon) runSync(ctx context.Context) error {
 
 	// Reset error count on success
 	d.status.ErrorCount = 0
-
-	// Process recurring task templates if enabled
-	if d.config.RecurringTasks.Enabled {
-		if err := d.processRecurringTasks(ctx); err != nil {
-			d.logger.Warn().Err(err).Msg("Failed to process recurring templates")
-			// Don't fail the entire sync - just log the error
-		}
-	}
 
 	d.writeStatus()
 	return nil
