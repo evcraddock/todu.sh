@@ -3,6 +3,7 @@ package review
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -12,31 +13,37 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// weeklyData holds all data needed for the weekly review
-type weeklyData struct {
-	waiting    []*types.Task
-	next       []*types.Task
-	active     []*types.Task
-	someday    []*types.Task
-	projectMap map[int]string
+// weeklyReviewData holds all data needed for the weekly review
+type weeklyReviewData struct {
+	startDate      time.Time
+	endDate        time.Time
+	completedTasks []*types.Task
+	habits         []*types.RecurringTaskTemplate
+	projectMap     map[int]string
+	habitTasks     map[int]map[string]*weeklyHabitTaskInfo // templateID -> date -> taskInfo
 }
 
-// weeklyAPIResults holds raw results from all API calls
+// weeklyHabitTaskInfo holds the task ID and completion status for a habit on a specific day
+type weeklyHabitTaskInfo struct {
+	taskID    int
+	completed bool
+}
+
+// weeklyAPIResults holds raw results from all API calls for weekly review
 type weeklyAPIResults struct {
-	waitingTasks      []*types.Task
-	highPriorityTasks []*types.Task
-	activeTasks       []*types.Task
-	mediumPriority    []*types.Task
-	lowPriorityTasks  []*types.Task
-	projects          []*types.Project
+	completedTasks []*types.Task
+	scheduledTasks []*types.Task
+	habits         []*types.RecurringTaskTemplate
+	projects       []*types.Project
 }
 
 // WeeklyReport generates a weekly review report and returns the markdown content
-func WeeklyReport(ctx context.Context, client *api.Client) (string, error) {
-	today := time.Now().Format("2006-01-02")
+// startDate is the first day of the 7-day period
+func WeeklyReport(ctx context.Context, client *api.Client, startDate time.Time) (string, error) {
+	start, end := getWeekBoundaries(startDate)
 
 	// Fetch all data in parallel
-	results, err := fetchWeeklyData(ctx, client)
+	results, err := fetchWeeklyReviewData(ctx, client, start, end)
 	if err != nil {
 		return "", err
 	}
@@ -44,33 +51,25 @@ func WeeklyReport(ctx context.Context, client *api.Client) (string, error) {
 	// Build project map
 	projectMap := buildProjectMap(results.projects)
 
-	// Build sections
-	waiting := results.waitingTasks
+	// Build habit template set
+	habitTemplateIDs := buildHabitTemplateSet(results.habits)
 
-	// Next: high priority OR overdue (deduplicated)
-	next := buildNextWeeklySection(results.highPriorityTasks, results.activeTasks, today)
+	// Build habit task map: templateID -> date -> taskInfo
+	habitTasks := buildWeeklyHabitTaskMap(results.scheduledTasks, habitTemplateIDs)
 
-	// Build set of task IDs in Next section for exclusion
-	nextIDs := make(map[int]struct{})
-	for _, t := range next {
-		nextIDs[t.ID] = struct{}{}
+	// Filter completed tasks to exclude habit tasks
+	completedTasks := filterNonHabitTasks(results.completedTasks, habitTemplateIDs)
+
+	data := &weeklyReviewData{
+		startDate:      start,
+		endDate:        end,
+		completedTasks: completedTasks,
+		habits:         results.habits,
+		projectMap:     projectMap,
+		habitTasks:     habitTasks,
 	}
 
-	// Active: medium priority OR no priority (deduplicated, excluding Next tasks)
-	active := buildActiveSection(results.mediumPriority, results.activeTasks, nextIDs)
-
-	// Someday: low priority
-	someday := results.lowPriorityTasks
-
-	data := &weeklyData{
-		waiting:    waiting,
-		next:       next,
-		active:     active,
-		someday:    someday,
-		projectMap: projectMap,
-	}
-
-	return generateWeeklyMarkdown(data), nil
+	return generateWeeklyReviewMarkdown(data), nil
 }
 
 // DefaultWeeklyReportPath returns the default path for the weekly review file
@@ -78,73 +77,86 @@ func DefaultWeeklyReportPath(localReportsPath string) string {
 	return buildWeeklyExportPath(expandPath(localReportsPath))
 }
 
-// buildWeeklyExportPath constructs the output file path for the weekly review
+// BuildWeeklyReportPath returns a dated path for saving weekly reviews
+func BuildWeeklyReportPath(localReportsPath string, startDate time.Time) string {
+	start, end := getWeekBoundaries(startDate)
+	return buildDatedWeeklyExportPath(expandPath(localReportsPath), start, end)
+}
+
+// buildWeeklyExportPath constructs the output file path for the weekly review (simple path)
 func buildWeeklyExportPath(localReports string) string {
 	return localReports + "/weekly-review.md"
 }
 
-// fetchWeeklyData fetches all data needed for the weekly review in parallel
-func fetchWeeklyData(ctx context.Context, client *api.Client) (*weeklyAPIResults, error) {
+// buildDatedWeeklyExportPath constructs the dated output file path
+// Format: {local_reports}/reviews/YYYY/MM-MonthName/MM-DD-YYYY-weekly-review.md
+// Uses the end date of the week for the filename
+func buildDatedWeeklyExportPath(localReports string, start, end time.Time) string {
+	year := end.Format("2006")
+	monthDir := end.Format("01-January")
+	fileName := fmt.Sprintf("%s-weekly-review.md", end.Format("01-02-2006"))
+	return filepath.Join(localReports, "reviews", year, monthDir, fileName)
+}
+
+// getWeekBoundaries calculates the start and end dates for a 7-day period
+// Week ends on the specified date and covers 7 days (end - 6 days)
+func getWeekBoundaries(endDate time.Time) (start, end time.Time) {
+	end = truncateToDay(endDate)
+	start = end.AddDate(0, 0, -6) // 7 days total (end - 6)
+	return start, end
+}
+
+// truncateToDay truncates a time to the start of the day in local timezone
+func truncateToDay(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+}
+
+// fetchWeeklyReviewData fetches all data needed for the weekly review in parallel
+func fetchWeeklyReviewData(ctx context.Context, client *api.Client, start, end time.Time) (*weeklyAPIResults, error) {
 	ctx, cancel := context.WithTimeout(ctx, exportAPITimeout)
 	defer cancel()
 
 	g, ctx := errgroup.WithContext(ctx)
 	results := &weeklyAPIResults{}
 
-	// 1. Waiting tasks
+	startStr := start.Format("2006-01-02")
+	// Add 1 day to end for inclusive range (API uses exclusive end)
+	endPlusOne := end.AddDate(0, 0, 1).Format("2006-01-02")
+
+	// 1. Completed tasks in date range
 	g.Go(func() error {
 		var err error
-		results.waitingTasks, err = client.ListTasks(ctx, &api.TaskListOptions{
-			Status: "waiting",
-			Limit:  maxTaskLimit,
+		results.completedTasks, err = client.ListTasks(ctx, &api.TaskListOptions{
+			Status:        "done",
+			UpdatedAfter:  startStr,
+			UpdatedBefore: endPlusOne,
+			Limit:         maxTaskLimit,
 		})
 		return err
 	})
 
-	// 2. High priority active tasks
+	// 2. Scheduled tasks in date range (for habit tracking)
 	g.Go(func() error {
 		var err error
-		results.highPriorityTasks, err = client.ListTasks(ctx, &api.TaskListOptions{
-			Status:   "active",
-			Priority: "high",
-			Limit:    maxTaskLimit,
+		results.scheduledTasks, err = client.ListTasks(ctx, &api.TaskListOptions{
+			ScheduledAfter:  startStr,
+			ScheduledBefore: endPlusOne,
+			Limit:           maxTaskLimit,
 		})
 		return err
 	})
 
-	// 3. All active tasks (for filtering overdue and no-priority)
+	// 3. Habit templates
 	g.Go(func() error {
 		var err error
-		results.activeTasks, err = client.ListTasks(ctx, &api.TaskListOptions{
-			Status: "active",
-			Limit:  maxTaskLimit,
+		results.habits, err = client.ListTemplates(ctx, &api.TemplateListOptions{
+			TemplateType: "habit",
+			Limit:        maxHabitLimit,
 		})
 		return err
 	})
 
-	// 4. Medium priority active tasks
-	g.Go(func() error {
-		var err error
-		results.mediumPriority, err = client.ListTasks(ctx, &api.TaskListOptions{
-			Status:   "active",
-			Priority: "medium",
-			Limit:    maxTaskLimit,
-		})
-		return err
-	})
-
-	// 5. Low priority active tasks
-	g.Go(func() error {
-		var err error
-		results.lowPriorityTasks, err = client.ListTasks(ctx, &api.TaskListOptions{
-			Status:   "active",
-			Priority: "low",
-			Limit:    maxTaskLimit,
-		})
-		return err
-	})
-
-	// 6. Projects
+	// 4. Projects
 	g.Go(func() error {
 		var err error
 		results.projects, err = client.ListProjects(ctx, nil)
@@ -158,155 +170,195 @@ func fetchWeeklyData(ctx context.Context, client *api.Client) (*weeklyAPIResults
 	return results, nil
 }
 
-// buildNextWeeklySection builds the Next section from high priority and overdue tasks
-func buildNextWeeklySection(highPriority, activeTasks []*types.Task, todayStr string) []*types.Task {
-	today, _ := time.ParseInLocation("2006-01-02", todayStr, time.Local)
-	endOfToday := today.AddDate(0, 0, 1).Add(-time.Nanosecond)
+// buildWeeklyHabitTaskMap creates a map from template ID to date to task info
+func buildWeeklyHabitTaskMap(scheduledTasks []*types.Task, habitTemplateIDs map[int]struct{}) map[int]map[string]*weeklyHabitTaskInfo {
+	habitTasks := make(map[int]map[string]*weeklyHabitTaskInfo)
 
-	seen := make(map[int]struct{})
-	var next []*types.Task
-
-	// Add high priority tasks
-	for _, t := range highPriority {
-		seen[t.ID] = struct{}{}
-		next = append(next, t)
-	}
-
-	// Add overdue tasks (due before or on today)
-	for _, t := range activeTasks {
-		if _, exists := seen[t.ID]; exists {
+	for _, t := range scheduledTasks {
+		if t.TemplateID == nil || t.ScheduledDate == nil {
 			continue
 		}
-		if t.DueDate != nil && !t.DueDate.After(endOfToday) {
-			seen[t.ID] = struct{}{}
-			next = append(next, t)
+		if _, isHabit := habitTemplateIDs[*t.TemplateID]; !isHabit {
+			continue
+		}
+
+		templateID := *t.TemplateID
+		dateStr := t.ScheduledDate.Local().Format("2006-01-02")
+
+		if habitTasks[templateID] == nil {
+			habitTasks[templateID] = make(map[string]*weeklyHabitTaskInfo)
+		}
+
+		habitTasks[templateID][dateStr] = &weeklyHabitTaskInfo{
+			taskID:    t.ID,
+			completed: t.Status == "done",
 		}
 	}
 
-	// Sort by due date (earliest first, no due date last)
-	sortTasksByDueDate(next)
-
-	return next
+	return habitTasks
 }
 
-// buildActiveSection builds the Active section from medium priority and no-priority tasks
-// excludeIDs contains task IDs that should be excluded (e.g., tasks already in Next)
-func buildActiveSection(mediumPriority, activeTasks []*types.Task, excludeIDs map[int]struct{}) []*types.Task {
-	seen := make(map[int]struct{})
-	var active []*types.Task
-
-	// Add medium priority tasks (excluding those in Next)
-	for _, t := range mediumPriority {
-		if _, excluded := excludeIDs[t.ID]; excluded {
-			continue
+// filterNonHabitTasks filters out habit tasks from a list of tasks
+func filterNonHabitTasks(tasks []*types.Task, habitTemplateIDs map[int]struct{}) []*types.Task {
+	var filtered []*types.Task
+	for _, t := range tasks {
+		if t.TemplateID != nil {
+			if _, isHabit := habitTemplateIDs[*t.TemplateID]; isHabit {
+				continue
+			}
 		}
-		seen[t.ID] = struct{}{}
-		active = append(active, t)
+		filtered = append(filtered, t)
 	}
-
-	// Add tasks with no priority (excluding those in Next)
-	for _, t := range activeTasks {
-		if _, excluded := excludeIDs[t.ID]; excluded {
-			continue
-		}
-		if _, exists := seen[t.ID]; exists {
-			continue
-		}
-		if t.Priority == nil {
-			seen[t.ID] = struct{}{}
-			active = append(active, t)
-		}
-	}
-
-	// Sort by due date (earliest first, no due date last)
-	sortTasksByDueDate(active)
-
-	return active
+	return filtered
 }
 
-// sortTasksByDueDate sorts tasks by due date (earliest first, no due date last)
-func sortTasksByDueDate(tasks []*types.Task) {
-	sort.Slice(tasks, func(i, j int) bool {
-		if tasks[i].DueDate == nil && tasks[j].DueDate == nil {
-			return tasks[i].ID < tasks[j].ID
-		}
-		if tasks[i].DueDate == nil {
-			return false
-		}
-		if tasks[j].DueDate == nil {
-			return true
-		}
-		return tasks[i].DueDate.Before(*tasks[j].DueDate)
-	})
-}
-
-// generateWeeklyMarkdown generates the markdown content for the weekly review
-func generateWeeklyMarkdown(data *weeklyData) string {
+// generateWeeklyReviewMarkdown generates the markdown content for the weekly review
+func generateWeeklyReviewMarkdown(data *weeklyReviewData) string {
 	var sb strings.Builder
-	now := time.Now()
 
-	sb.WriteString("# Weekly Review\n\n")
-	sb.WriteString(fmt.Sprintf("Generated: %s\n\n", now.Format("2006-01-02 15:04")))
+	// Header with date range
+	sb.WriteString(fmt.Sprintf("# Weekly Review: %s to %s\n\n",
+		data.startDate.Format("01-02-2006"),
+		data.endDate.Format("01-02-2006")))
 
-	// Waiting section
-	sb.WriteString("## Waiting\n\n")
-	writeTaskSection(&sb, data.waiting, data.projectMap)
+	// Projects Worked On section
+	writeProjectSummaries(&sb, data.completedTasks, data.projectMap)
 
-	// Next section
-	sb.WriteString("## Next\n\n")
-	writeTaskSection(&sb, data.next, data.projectMap)
+	// Habits Summary section
+	writeHabitsSummary(&sb, data)
 
-	// Active section
-	sb.WriteString("## Active\n\n")
-	writeTaskSection(&sb, data.active, data.projectMap)
-
-	// Someday section
-	sb.WriteString("## Someday\n\n")
-	writeTaskSectionNoTrailingNewline(&sb, data.someday, data.projectMap)
+	// Weekly Stats section
+	writeWeeklyStats(&sb, data)
 
 	return sb.String()
 }
 
-// writeTaskSection writes a section of tasks to the string builder
-func writeTaskSection(sb *strings.Builder, tasks []*types.Task, projectMap map[int]string) {
+// writeProjectSummaries writes the projects section with completed tasks grouped by project
+func writeProjectSummaries(sb *strings.Builder, tasks []*types.Task, projectMap map[int]string) {
+	sb.WriteString("## Projects Worked On\n\n")
+
 	if len(tasks) == 0 {
-		sb.WriteString("0 tasks\n\n")
+		sb.WriteString("No tasks completed this week.\n\n")
 		return
 	}
 
+	// Group tasks by project
+	tasksByProject := make(map[int][]*types.Task)
 	for _, t := range tasks {
-		projectName := projectMap[t.ProjectID]
-		dueStr := ""
-		if t.DueDate != nil {
-			dueStr = fmt.Sprintf(" - Due: %s", t.DueDate.Local().Format("2006-01-02"))
+		tasksByProject[t.ProjectID] = append(tasksByProject[t.ProjectID], t)
+	}
+
+	// Sort project IDs for consistent output
+	var projectIDs []int
+	for pid := range tasksByProject {
+		projectIDs = append(projectIDs, pid)
+	}
+	sort.Ints(projectIDs)
+
+	for _, pid := range projectIDs {
+		projectTasks := tasksByProject[pid]
+		projectName := projectMap[pid]
+		if projectName == "" {
+			projectName = fmt.Sprintf("Project %d", pid)
 		}
-		sb.WriteString(fmt.Sprintf("- #%d %s (%s)%s\n", t.ID, t.Title, projectName, dueStr))
+
+		sb.WriteString(fmt.Sprintf("### %s\n\n", projectName))
+		sb.WriteString(fmt.Sprintf("Completed %d task(s)\n\n", len(projectTasks)))
+
+		// Sort tasks by ID for consistent output
+		sort.Slice(projectTasks, func(i, j int) bool {
+			return projectTasks[i].ID < projectTasks[j].ID
+		})
+
+		for _, t := range projectTasks {
+			sb.WriteString(fmt.Sprintf("- [x] #%d %s\n", t.ID, t.Title))
+		}
+		sb.WriteString("\n")
 	}
-	sb.WriteString(fmt.Sprintf("\n%d task", len(tasks)))
-	if len(tasks) != 1 {
-		sb.WriteString("s")
-	}
-	sb.WriteString("\n\n")
 }
 
-// writeTaskSectionNoTrailingNewline writes a section without trailing double newline
-func writeTaskSectionNoTrailingNewline(sb *strings.Builder, tasks []*types.Task, projectMap map[int]string) {
-	if len(tasks) == 0 {
-		sb.WriteString("0 tasks\n")
+// writeHabitsSummary writes the habits summary table
+func writeHabitsSummary(sb *strings.Builder, data *weeklyReviewData) {
+	sb.WriteString("---\n\n")
+	sb.WriteString("## Habits Summary\n\n")
+
+	if len(data.habits) == 0 {
+		sb.WriteString("No habits tracked.\n\n")
 		return
 	}
 
-	for _, t := range tasks {
-		projectName := projectMap[t.ProjectID]
-		dueStr := ""
-		if t.DueDate != nil {
-			dueStr = fmt.Sprintf(" - Due: %s", t.DueDate.Local().Format("2006-01-02"))
-		}
-		sb.WriteString(fmt.Sprintf("- #%d %s (%s)%s\n", t.ID, t.Title, projectName, dueStr))
+	// Generate day headers (short day names)
+	days := make([]time.Time, 7)
+	for i := 0; i < 7; i++ {
+		days[i] = data.startDate.AddDate(0, 0, i)
 	}
-	sb.WriteString(fmt.Sprintf("\n%d task", len(tasks)))
-	if len(tasks) != 1 {
-		sb.WriteString("s")
+
+	// Table header
+	sb.WriteString("| Habit |")
+	for _, day := range days {
+		sb.WriteString(fmt.Sprintf(" %s |", day.Format("Mon")))
 	}
 	sb.WriteString("\n")
+
+	// Table separator
+	sb.WriteString("|-------|")
+	for range days {
+		sb.WriteString("-----|")
+	}
+	sb.WriteString("\n")
+
+	// Table rows for each habit
+	for _, habit := range data.habits {
+		sb.WriteString(fmt.Sprintf("| %s |", habit.Title))
+
+		for _, day := range days {
+			dateStr := day.Format("2006-01-02")
+			symbol := "-"
+
+			if dayTasks, ok := data.habitTasks[habit.ID]; ok {
+				if taskInfo, ok := dayTasks[dateStr]; ok {
+					if taskInfo.completed {
+						symbol = "✓"
+					} else {
+						symbol = "○" // scheduled but not done
+					}
+				}
+			}
+
+			sb.WriteString(fmt.Sprintf(" %s |", symbol))
+		}
+		sb.WriteString("\n")
+	}
+	sb.WriteString("\n")
+}
+
+// writeWeeklyStats writes the weekly statistics section
+func writeWeeklyStats(sb *strings.Builder, data *weeklyReviewData) {
+	sb.WriteString("---\n\n")
+	sb.WriteString("## Weekly Stats\n\n")
+
+	// Count completed tasks
+	tasksCompleted := len(data.completedTasks)
+
+	// Count habit completions
+	habitsCompleted := 0
+	habitsPossible := 0
+
+	for _, habit := range data.habits {
+		if dayTasks, ok := data.habitTasks[habit.ID]; ok {
+			for _, taskInfo := range dayTasks {
+				habitsPossible++
+				if taskInfo.completed {
+					habitsCompleted++
+				}
+			}
+		}
+	}
+
+	sb.WriteString(fmt.Sprintf("- **Tasks Completed**: %d\n", tasksCompleted))
+	if habitsPossible > 0 {
+		sb.WriteString(fmt.Sprintf("- **Habits Completed**: %d/%d\n", habitsCompleted, habitsPossible))
+	} else {
+		sb.WriteString("- **Habits Completed**: 0\n")
+	}
 }

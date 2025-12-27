@@ -44,17 +44,19 @@ Example:
 var reviewWeeklyCmd = &cobra.Command{
 	Use:   "weekly",
 	Short: "Generate weekly review report",
-	Long: `Generate a weekly review report with tasks organized by priority.
+	Long: `Generate a weekly review showing completed tasks and habits.
+
+The week starts from the specified date (or today) and covers 7 days.
 
 The report includes:
-  - Waiting: Tasks in waiting status
-  - Next: High priority tasks and overdue tasks
-  - Active: Medium priority tasks and tasks with no priority
-  - Someday: Low priority tasks
+  - Projects Worked On: Completed tasks grouped by project
+  - Habits Summary: Table showing habit completion for each day
+  - Weekly Stats: Total tasks completed and habit completion rate
 
 Example:
-  todu review weekly                        # Display review to stdout
-  todu review weekly --save                 # Save to default location
+  todu review weekly                        # Review from today
+  todu review weekly --date 2025-12-21      # Review from specific date
+  todu review weekly --save                 # Save to dated file
   todu review weekly --save=./review.md     # Save to specific path (use = for path)`,
 	RunE: runReviewWeekly,
 }
@@ -62,6 +64,7 @@ Example:
 var (
 	reviewDailyDate  string
 	reviewDailySave  string
+	reviewWeeklyDate string
 	reviewWeeklySave string
 )
 
@@ -74,7 +77,8 @@ func init() {
 	reviewDailyCmd.Flags().StringVar(&reviewDailySave, "save", "", "Save to file (optional path, defaults to {local_reports}/daily-review.md)")
 	reviewDailyCmd.Flags().Lookup("save").NoOptDefVal = "default"
 
-	reviewWeeklyCmd.Flags().StringVar(&reviewWeeklySave, "save", "", "Save to file (optional path, defaults to {local_reports}/weekly-review.md)")
+	reviewWeeklyCmd.Flags().StringVar(&reviewWeeklyDate, "date", "", "Start date (YYYY-MM-DD, defaults to today)")
+	reviewWeeklyCmd.Flags().StringVar(&reviewWeeklySave, "save", "", "Save to file (optional path, defaults to dated file in {local_reports}/reviews/)")
 	reviewWeeklyCmd.Flags().Lookup("save").NoOptDefVal = "default"
 }
 
@@ -143,11 +147,21 @@ func runReviewWeekly(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("API URL not configured")
 	}
 
+	// Parse start date
+	startDate := time.Now()
+	if reviewWeeklyDate != "" {
+		parsed, err := time.ParseInLocation("2006-01-02", reviewWeeklyDate, time.Local)
+		if err != nil {
+			return fmt.Errorf("invalid date format: %s (expected YYYY-MM-DD)", reviewWeeklyDate)
+		}
+		startDate = parsed
+	}
+
 	apiClient := api.NewClient(cfg.APIURL, cfg.APIKey)
 	ctx := context.Background()
 
 	// Generate the report
-	markdown, err := review.WeeklyReport(ctx, apiClient)
+	markdown, err := review.WeeklyReport(ctx, apiClient, startDate)
 	if err != nil {
 		return fmt.Errorf("failed to generate weekly review: %w", err)
 	}
@@ -156,11 +170,11 @@ func runReviewWeekly(cmd *cobra.Command, args []string) error {
 	if reviewWeeklySave != "" {
 		var outputPath string
 		if reviewWeeklySave == "default" {
-			// Use default location
+			// Use default location with dated path
 			if cfg.LocalReports == "" {
 				return fmt.Errorf("local_reports path not configured. Set it in your config file or specify a path: --save ./review.md")
 			}
-			outputPath = review.DefaultWeeklyReportPath(cfg.LocalReports)
+			outputPath = review.BuildWeeklyReportPath(cfg.LocalReports, startDate)
 		} else {
 			// Use provided path
 			outputPath = reviewWeeklySave

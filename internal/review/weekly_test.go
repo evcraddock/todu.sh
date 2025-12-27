@@ -8,109 +8,129 @@ import (
 	"github.com/evcraddock/todu.sh/pkg/types"
 )
 
-func TestBuildNextWeeklySection(t *testing.T) {
-	today := time.Now().Format("2006-01-02")
-	yesterday := time.Now().AddDate(0, 0, -1)
-	tomorrow := time.Now().AddDate(0, 0, 1)
-
-	highPriority := []*types.Task{
-		{ID: 1, Title: "High priority task", Status: "active"},
+func TestGetWeekBoundaries(t *testing.T) {
+	tests := []struct {
+		name          string
+		endDate       time.Time
+		expectedStart string
+		expectedEnd   string
+	}{
+		{
+			name:          "regular week",
+			endDate:       time.Date(2025, 12, 27, 10, 30, 0, 0, time.Local),
+			expectedStart: "2025-12-21",
+			expectedEnd:   "2025-12-27",
+		},
+		{
+			name:          "week spanning month boundary",
+			endDate:       time.Date(2026, 1, 3, 0, 0, 0, 0, time.Local),
+			expectedStart: "2025-12-28",
+			expectedEnd:   "2026-01-03",
+		},
+		{
+			name:          "week spanning year boundary",
+			endDate:       time.Date(2026, 1, 5, 15, 45, 30, 0, time.Local),
+			expectedStart: "2025-12-30",
+			expectedEnd:   "2026-01-05",
+		},
 	}
 
-	activeTasks := []*types.Task{
-		{ID: 1, Title: "High priority task", Status: "active"}, // Duplicate
-		{ID: 2, Title: "Overdue task", Status: "active", DueDate: &yesterday},
-		{ID: 3, Title: "Future task", Status: "active", DueDate: &tomorrow},
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			start, end := getWeekBoundaries(tt.endDate)
 
-	result := buildNextWeeklySection(highPriority, activeTasks, today)
+			if start.Format("2006-01-02") != tt.expectedStart {
+				t.Errorf("start = %s, want %s", start.Format("2006-01-02"), tt.expectedStart)
+			}
+			if end.Format("2006-01-02") != tt.expectedEnd {
+				t.Errorf("end = %s, want %s", end.Format("2006-01-02"), tt.expectedEnd)
+			}
 
-	// Should have high priority + overdue, but not future task
-	if len(result) != 2 {
-		t.Errorf("Expected 2 tasks, got %d", len(result))
-	}
-
-	// Check deduplication - task 1 should only appear once
-	ids := make(map[int]int)
-	for _, task := range result {
-		ids[task.ID]++
-	}
-	if ids[1] != 1 {
-		t.Errorf("Task 1 should appear exactly once, got %d", ids[1])
-	}
-
-	// Task 3 (future) should not be included
-	if ids[3] != 0 {
-		t.Error("Future task should not be included in Next section")
+			// Verify end is truncated to beginning of day
+			if end.Hour() != 0 || end.Minute() != 0 || end.Second() != 0 {
+				t.Error("end should be truncated to beginning of day")
+			}
+		})
 	}
 }
 
-func TestBuildActiveSection(t *testing.T) {
-	priority := "medium"
-	mediumPriority := []*types.Task{
-		{ID: 1, Title: "Medium priority task", Status: "active", Priority: &priority},
-	}
+func TestTruncateToDay(t *testing.T) {
+	input := time.Date(2025, 12, 25, 14, 30, 45, 123456789, time.Local)
+	result := truncateToDay(input)
 
-	highPriority := "high"
-	lowPriority := "low"
-	activeTasks := []*types.Task{
-		{ID: 1, Title: "Medium priority task", Status: "active", Priority: &priority}, // Duplicate
-		{ID: 2, Title: "No priority task", Status: "active", Priority: nil},
-		{ID: 3, Title: "High priority task", Status: "active", Priority: &highPriority},
-		{ID: 4, Title: "Low priority task", Status: "active", Priority: &lowPriority},
+	if result.Hour() != 0 || result.Minute() != 0 || result.Second() != 0 || result.Nanosecond() != 0 {
+		t.Errorf("truncateToDay did not zero out time components: got %v", result)
 	}
-
-	// No exclusions
-	excludeIDs := make(map[int]struct{})
-	result := buildActiveSection(mediumPriority, activeTasks, excludeIDs)
-
-	// Should have medium priority + no priority only
-	if len(result) != 2 {
-		t.Errorf("Expected 2 tasks, got %d", len(result))
-	}
-
-	// Check correct tasks are included
-	ids := make(map[int]bool)
-	for _, task := range result {
-		ids[task.ID] = true
-	}
-
-	if !ids[1] {
-		t.Error("Medium priority task should be included")
-	}
-	if !ids[2] {
-		t.Error("No priority task should be included")
-	}
-	if ids[3] {
-		t.Error("High priority task should not be included")
-	}
-	if ids[4] {
-		t.Error("Low priority task should not be included")
+	if result.Year() != 2025 || result.Month() != 12 || result.Day() != 25 {
+		t.Errorf("truncateToDay changed date components: got %v", result)
 	}
 }
 
-func TestBuildActiveSection_WithExclusions(t *testing.T) {
-	priority := "medium"
-	mediumPriority := []*types.Task{
-		{ID: 1, Title: "Medium priority task", Status: "active", Priority: &priority},
-		{ID: 5, Title: "Another medium", Status: "active", Priority: &priority},
+func TestBuildWeeklyHabitTaskMap(t *testing.T) {
+	templateID1 := 1
+	templateID2 := 2
+	templateID3 := 3 // Not a habit
+
+	scheduledDate1 := time.Date(2025, 12, 21, 0, 0, 0, 0, time.Local)
+	scheduledDate2 := time.Date(2025, 12, 22, 0, 0, 0, 0, time.Local)
+
+	scheduledTasks := []*types.Task{
+		{ID: 101, TemplateID: &templateID1, ScheduledDate: &scheduledDate1, Status: "done"},
+		{ID: 102, TemplateID: &templateID1, ScheduledDate: &scheduledDate2, Status: "active"},
+		{ID: 103, TemplateID: &templateID2, ScheduledDate: &scheduledDate1, Status: "done"},
+		{ID: 104, TemplateID: &templateID3, ScheduledDate: &scheduledDate1, Status: "done"}, // Not a habit
+		{ID: 105, TemplateID: nil, ScheduledDate: &scheduledDate1, Status: "done"},          // No template
 	}
 
-	activeTasks := []*types.Task{
-		{ID: 2, Title: "No priority task", Status: "active", Priority: nil},
-		{ID: 6, Title: "Another no priority", Status: "active", Priority: nil},
-	}
-
-	// Exclude task 1 and 2 (as if they were in Next section)
-	excludeIDs := map[int]struct{}{
+	habitTemplateIDs := map[int]struct{}{
 		1: {},
 		2: {},
 	}
-	result := buildActiveSection(mediumPriority, activeTasks, excludeIDs)
 
-	// Should only have tasks 5 and 6
+	result := buildWeeklyHabitTaskMap(scheduledTasks, habitTemplateIDs)
+
+	// Check template 1 has two days
+	if len(result[1]) != 2 {
+		t.Errorf("Template 1 should have 2 days, got %d", len(result[1]))
+	}
+
+	// Check template 2 has one day
+	if len(result[2]) != 1 {
+		t.Errorf("Template 2 should have 1 day, got %d", len(result[2]))
+	}
+
+	// Check template 3 is not included (not a habit)
+	if _, exists := result[3]; exists {
+		t.Error("Template 3 should not be included (not a habit)")
+	}
+
+	// Check completion status
+	if !result[1]["2025-12-21"].completed {
+		t.Error("Task 101 should be marked as completed")
+	}
+	if result[1]["2025-12-22"].completed {
+		t.Error("Task 102 should not be marked as completed")
+	}
+}
+
+func TestFilterNonHabitTasks(t *testing.T) {
+	templateID1 := 1 // Habit
+	templateID2 := 2 // Not a habit
+
+	tasks := []*types.Task{
+		{ID: 1, Title: "Regular task", TemplateID: nil},
+		{ID: 2, Title: "Habit task", TemplateID: &templateID1},
+		{ID: 3, Title: "Recurring non-habit", TemplateID: &templateID2},
+	}
+
+	habitTemplateIDs := map[int]struct{}{
+		1: {},
+	}
+
+	result := filterNonHabitTasks(tasks, habitTemplateIDs)
+
 	if len(result) != 2 {
-		t.Errorf("Expected 2 tasks, got %d", len(result))
+		t.Errorf("Expected 2 non-habit tasks, got %d", len(result))
 	}
 
 	ids := make(map[int]bool)
@@ -118,63 +138,36 @@ func TestBuildActiveSection_WithExclusions(t *testing.T) {
 		ids[task.ID] = true
 	}
 
-	if ids[1] {
-		t.Error("Task 1 should be excluded")
-	}
 	if ids[2] {
-		t.Error("Task 2 should be excluded")
+		t.Error("Habit task should be filtered out")
 	}
-	if !ids[5] {
-		t.Error("Task 5 should be included")
-	}
-	if !ids[6] {
-		t.Error("Task 6 should be included")
+	if !ids[1] || !ids[3] {
+		t.Error("Non-habit tasks should be included")
 	}
 }
 
-func TestSortTasksByDueDate(t *testing.T) {
-	now := time.Now()
-	yesterday := now.AddDate(0, 0, -1)
-	tomorrow := now.AddDate(0, 0, 1)
-
-	tasks := []*types.Task{
-		{ID: 1, Title: "No due date", DueDate: nil},
-		{ID: 2, Title: "Tomorrow", DueDate: &tomorrow},
-		{ID: 3, Title: "Yesterday", DueDate: &yesterday},
+func TestGenerateWeeklyReviewMarkdown_Empty(t *testing.T) {
+	data := &weeklyReviewData{
+		startDate:      time.Date(2025, 12, 21, 0, 0, 0, 0, time.Local),
+		endDate:        time.Date(2025, 12, 27, 0, 0, 0, 0, time.Local),
+		completedTasks: nil,
+		habits:         nil,
+		projectMap:     make(map[int]string),
+		habitTasks:     make(map[int]map[string]*weeklyHabitTaskInfo),
 	}
 
-	sortTasksByDueDate(tasks)
+	result := generateWeeklyReviewMarkdown(data)
 
-	// Should be: yesterday, tomorrow, no due date
-	if tasks[0].ID != 3 {
-		t.Errorf("First task should be ID 3 (yesterday), got %d", tasks[0].ID)
-	}
-	if tasks[1].ID != 2 {
-		t.Errorf("Second task should be ID 2 (tomorrow), got %d", tasks[1].ID)
-	}
-	if tasks[2].ID != 1 {
-		t.Errorf("Third task should be ID 1 (no due date), got %d", tasks[2].ID)
-	}
-}
-
-func TestGenerateWeeklyMarkdown_Empty(t *testing.T) {
-	data := &weeklyData{
-		waiting:    nil,
-		next:       nil,
-		active:     nil,
-		someday:    nil,
-		projectMap: make(map[int]string),
+	// Check header with date range
+	if !strings.Contains(result, "# Weekly Review: 12-21-2025 to 12-27-2025") {
+		t.Error("Expected header with date range")
 	}
 
-	result := generateWeeklyMarkdown(data)
-
-	// Check that all sections are present
+	// Check all sections are present
 	expectedSections := []string{
-		"# Weekly Review",
-		"## Waiting",
-		"## Next",
-		"## Active",
-		"## Someday",
+		"## Projects Worked On",
+		"## Habits Summary",
+		"## Weekly Stats",
 	}
 
 	for _, section := range expectedSections {
@@ -183,62 +176,117 @@ func TestGenerateWeeklyMarkdown_Empty(t *testing.T) {
 		}
 	}
 
-	// Check that empty sections show "0 tasks"
-	if strings.Count(result, "0 tasks") != 4 {
-		t.Errorf("Expected 4 '0 tasks' entries for empty sections, got %d", strings.Count(result, "0 tasks"))
+	// Check empty messages
+	if !strings.Contains(result, "No tasks completed this week.") {
+		t.Error("Expected 'No tasks completed' message")
+	}
+	if !strings.Contains(result, "No habits tracked.") {
+		t.Error("Expected 'No habits tracked' message")
 	}
 }
 
-func TestGenerateWeeklyMarkdown_WithData(t *testing.T) {
-	now := time.Now()
-	dueDate := now.Add(24 * time.Hour)
-
-	data := &weeklyData{
-		waiting: []*types.Task{
-			{ID: 1, Title: "Waiting for response", ProjectID: 1},
+func TestGenerateWeeklyReviewMarkdown_WithData(t *testing.T) {
+	data := &weeklyReviewData{
+		startDate: time.Date(2025, 12, 21, 0, 0, 0, 0, time.Local),
+		endDate:   time.Date(2025, 12, 27, 0, 0, 0, 0, time.Local),
+		completedTasks: []*types.Task{
+			{ID: 1, Title: "Fix login bug", ProjectID: 1},
+			{ID: 2, Title: "Add tests", ProjectID: 1},
+			{ID: 3, Title: "Update docs", ProjectID: 2},
 		},
-		next: []*types.Task{
-			{ID: 2, Title: "High priority task", ProjectID: 1, DueDate: &dueDate},
-		},
-		active: []*types.Task{
-			{ID: 3, Title: "Medium priority task", ProjectID: 2},
-		},
-		someday: []*types.Task{
-			{ID: 4, Title: "Low priority task", ProjectID: 1},
+		habits: []*types.RecurringTaskTemplate{
+			{ID: 10, Title: "Exercise"},
+			{ID: 11, Title: "Reading"},
 		},
 		projectMap: map[int]string{
-			1: "Project A",
-			2: "Project B",
+			1: "todu.sh",
+			2: "Documentation",
+		},
+		habitTasks: map[int]map[string]*weeklyHabitTaskInfo{
+			10: {
+				"2025-12-21": {taskID: 100, completed: true},
+				"2025-12-22": {taskID: 101, completed: false},
+				"2025-12-23": {taskID: 102, completed: true},
+			},
+			11: {
+				"2025-12-21": {taskID: 200, completed: true},
+			},
 		},
 	}
 
-	result := generateWeeklyMarkdown(data)
+	result := generateWeeklyReviewMarkdown(data)
 
-	// Check tasks are listed
-	if !strings.Contains(result, "#1 Waiting for response") {
-		t.Error("Expected waiting task to be listed")
+	// Check project sections
+	if !strings.Contains(result, "### todu.sh") {
+		t.Error("Expected todu.sh project section")
 	}
-	if !strings.Contains(result, "#2 High priority task") {
-		t.Error("Expected next task to be listed")
-	}
-	if !strings.Contains(result, "#3 Medium priority task") {
-		t.Error("Expected active task to be listed")
-	}
-	if !strings.Contains(result, "#4 Low priority task") {
-		t.Error("Expected someday task to be listed")
+	if !strings.Contains(result, "### Documentation") {
+		t.Error("Expected Documentation project section")
 	}
 
-	// Check project names are included
-	if !strings.Contains(result, "(Project A)") {
-		t.Error("Expected project name to be included")
-	}
-	if !strings.Contains(result, "(Project B)") {
-		t.Error("Expected project name to be included")
+	// Check task count
+	if !strings.Contains(result, "Completed 2 task(s)") {
+		t.Error("Expected '2 task(s)' for todu.sh project")
 	}
 
-	// Check task counts - each section has 1 task
-	if strings.Count(result, "1 task\n") != 4 {
-		t.Errorf("Expected 4 '1 task' entries, got %d", strings.Count(result, "1 task\n"))
+	// Check tasks are listed with checkboxes
+	if !strings.Contains(result, "- [x] #1 Fix login bug") {
+		t.Error("Expected task with checkbox")
+	}
+
+	// Check habits summary table header
+	if !strings.Contains(result, "| Habit |") {
+		t.Error("Expected habits table header")
+	}
+	if !strings.Contains(result, "| Exercise |") {
+		t.Error("Expected Exercise habit row")
+	}
+
+	// Check stats
+	if !strings.Contains(result, "**Tasks Completed**: 3") {
+		t.Error("Expected tasks completed stat")
+	}
+	if !strings.Contains(result, "**Habits Completed**: 3/4") {
+		t.Error("Expected habits completed stat (3 done out of 4 scheduled)")
+	}
+}
+
+func TestWriteHabitsSummary_DayHeaders(t *testing.T) {
+	data := &weeklyReviewData{
+		startDate: time.Date(2025, 12, 21, 0, 0, 0, 0, time.Local), // Sunday
+		endDate:   time.Date(2025, 12, 27, 0, 0, 0, 0, time.Local), // Saturday
+		habits: []*types.RecurringTaskTemplate{
+			{ID: 1, Title: "Test Habit"},
+		},
+		habitTasks: map[int]map[string]*weeklyHabitTaskInfo{
+			1: {
+				"2025-12-21": {taskID: 100, completed: true},
+				"2025-12-24": {taskID: 101, completed: false},
+			},
+		},
+	}
+
+	var sb strings.Builder
+	writeHabitsSummary(&sb, data)
+	result := sb.String()
+
+	// Check day headers are present (Sun through Sat)
+	expectedDays := []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
+	for _, day := range expectedDays {
+		if !strings.Contains(result, day) {
+			t.Errorf("Expected day header %s", day)
+		}
+	}
+
+	// Check symbols
+	if !strings.Contains(result, "✓") {
+		t.Error("Expected checkmark for completed habit")
+	}
+	if !strings.Contains(result, "○") {
+		t.Error("Expected circle for incomplete habit")
+	}
+	if !strings.Contains(result, "-") {
+		t.Error("Expected dash for non-scheduled days")
 	}
 }
 
@@ -247,5 +295,76 @@ func TestDefaultWeeklyReportPath(t *testing.T) {
 	expected := "/home/user/reports/weekly-review.md"
 	if result != expected {
 		t.Errorf("DefaultWeeklyReportPath() = %q, want %q", result, expected)
+	}
+}
+
+func TestBuildWeeklyReportPath(t *testing.T) {
+	endDate := time.Date(2025, 12, 27, 0, 0, 0, 0, time.Local)
+	result := BuildWeeklyReportPath("/home/user/reports", endDate)
+	expected := "/home/user/reports/reviews/2025/12-December/12-27-2025-weekly-review.md"
+	if result != expected {
+		t.Errorf("BuildWeeklyReportPath() = %q, want %q", result, expected)
+	}
+}
+
+func TestBuildDatedWeeklyExportPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		start    time.Time
+		end      time.Time
+		expected string
+	}{
+		{
+			name:     "regular path",
+			start:    time.Date(2025, 12, 21, 0, 0, 0, 0, time.Local),
+			end:      time.Date(2025, 12, 27, 0, 0, 0, 0, time.Local),
+			expected: "/reports/reviews/2025/12-December/12-27-2025-weekly-review.md",
+		},
+		{
+			name:     "week spanning months",
+			start:    time.Date(2025, 12, 28, 0, 0, 0, 0, time.Local),
+			end:      time.Date(2026, 1, 3, 0, 0, 0, 0, time.Local),
+			expected: "/reports/reviews/2026/01-January/01-03-2026-weekly-review.md",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildDatedWeeklyExportPath("/reports", tt.start, tt.end)
+			if result != tt.expected {
+				t.Errorf("buildDatedWeeklyExportPath() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestWriteProjectSummaries_SortedByProjectID(t *testing.T) {
+	tasks := []*types.Task{
+		{ID: 3, Title: "Task C", ProjectID: 3},
+		{ID: 1, Title: "Task A", ProjectID: 1},
+		{ID: 2, Title: "Task B", ProjectID: 2},
+	}
+
+	projectMap := map[int]string{
+		1: "Alpha",
+		2: "Beta",
+		3: "Gamma",
+	}
+
+	var sb strings.Builder
+	writeProjectSummaries(&sb, tasks, projectMap)
+	result := sb.String()
+
+	// Check that projects appear in order (by ID)
+	alphaIdx := strings.Index(result, "### Alpha")
+	betaIdx := strings.Index(result, "### Beta")
+	gammaIdx := strings.Index(result, "### Gamma")
+
+	if alphaIdx == -1 || betaIdx == -1 || gammaIdx == -1 {
+		t.Fatal("Missing project sections")
+	}
+
+	if !(alphaIdx < betaIdx && betaIdx < gammaIdx) {
+		t.Error("Projects should be sorted by ID (Alpha < Beta < Gamma)")
 	}
 }
