@@ -54,7 +54,7 @@ func Export(ctx context.Context, client *api.Client, targetDate time.Time, local
 
 	// Fetch all data from API in parallel
 	dateStr := targetDate.Format("2006-01-02")
-	results, err := fetchData(ctx, client, dateStr)
+	results, err := fetchData(ctx, client, targetDate, dateStr)
 	if err != nil {
 		return "", err
 	}
@@ -92,7 +92,7 @@ func Export(ctx context.Context, client *api.Client, targetDate time.Time, local
 }
 
 // fetchData fetches all data needed for export in parallel
-func fetchData(ctx context.Context, client *api.Client, dateStr string) (*apiResults, error) {
+func fetchData(ctx context.Context, client *api.Client, targetDate time.Time, dateStr string) (*apiResults, error) {
 	ctx, cancel := context.WithTimeout(ctx, exportAPITimeout)
 	defer cancel()
 
@@ -134,11 +134,13 @@ func fetchData(ctx context.Context, client *api.Client, dateStr string) (*apiRes
 		return err
 	})
 
-	// 5. Fetch scheduled tasks
+	// 5. Fetch scheduled tasks for target date
+	// Convert local midnight to UTC timestamp for API filter
+	scheduledDateUTC := targetDate.UTC().Format(time.RFC3339)
 	g.Go(func() error {
 		var err error
 		results.scheduledTasks, err = client.ListTasks(ctx, &api.TaskListOptions{
-			ScheduledDate: dateStr,
+			ScheduledDate: scheduledDateUTC,
 			Limit:         maxTaskLimit,
 		})
 		return err
