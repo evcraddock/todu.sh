@@ -543,8 +543,9 @@ func runJournalExport(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("local_reports path not configured")
 	}
 
-	// 2. Parse target date
-	targetDate := time.Now()
+	// 2. Parse target date (always use midnight local time)
+	now := time.Now()
+	targetDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
 	if journalExportDate != "" {
 		parsed, err := time.ParseInLocation("2006-01-02", journalExportDate, time.Local)
 		if err != nil {
