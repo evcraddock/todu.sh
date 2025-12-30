@@ -293,14 +293,20 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 		if toduTask.ExternalID == "" {
 			// Task doesn't have external_id, create it in external system
 			if !dryRun {
+				// Fetch full task details to get description (not included in list response)
+				fullTask, err := e.apiClient.GetTask(ctx, toduTask.ID)
+				if err != nil {
+					pr.Errors = append(pr.Errors, fmt.Errorf("failed to fetch full task %q: %w", toduTask.Title, err))
+					continue
+				}
 				taskCreate := &types.TaskCreate{
-					Title:       toduTask.Title,
-					Description: toduTask.Description,
-					Status:      toduTask.Status,
-					Priority:    toduTask.Priority,
-					DueDate:     toduTask.DueDate,
-					Labels:      extractLabelNames(toduTask.Labels),
-					Assignees:   extractAssigneeNames(toduTask.Assignees),
+					Title:       fullTask.Title,
+					Description: fullTask.Description,
+					Status:      fullTask.Status,
+					Priority:    fullTask.Priority,
+					DueDate:     fullTask.DueDate,
+					Labels:      extractLabelNames(fullTask.Labels),
+					Assignees:   extractAssigneeNames(fullTask.Assignees),
 				}
 				createdTask, err := p.CreateTask(ctx, &project.ExternalID, taskCreate)
 				if err != nil {
@@ -369,16 +375,22 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 		if NeedsUpdate(toduTask, externalTask) {
 			// Todu task is newer, push to external system
 			if !dryRun {
-				taskUpdate := &types.TaskUpdate{
-					Title:       &toduTask.Title,
-					Description: toduTask.Description,
-					Status:      &toduTask.Status,
-					Priority:    toduTask.Priority,
-					DueDate:     toduTask.DueDate,
-					Labels:      extractLabelNames(toduTask.Labels),
-					Assignees:   extractAssigneeNames(toduTask.Assignees),
+				// Fetch full task details to get description (not included in list response)
+				fullTask, err := e.apiClient.GetTask(ctx, toduTask.ID)
+				if err != nil {
+					pr.Errors = append(pr.Errors, fmt.Errorf("failed to fetch full task %q: %w", toduTask.Title, err))
+					continue
 				}
-				_, err := p.UpdateTask(ctx, &project.ExternalID, toduTask.ExternalID, taskUpdate)
+				taskUpdate := &types.TaskUpdate{
+					Title:       &fullTask.Title,
+					Description: fullTask.Description,
+					Status:      &fullTask.Status,
+					Priority:    fullTask.Priority,
+					DueDate:     fullTask.DueDate,
+					Labels:      extractLabelNames(fullTask.Labels),
+					Assignees:   extractAssigneeNames(fullTask.Assignees),
+				}
+				_, err = p.UpdateTask(ctx, &project.ExternalID, toduTask.ExternalID, taskUpdate)
 				if err != nil {
 					if err == plugin.ErrNotSupported {
 						pr.Skipped++
