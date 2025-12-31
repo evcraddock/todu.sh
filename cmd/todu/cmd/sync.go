@@ -39,6 +39,7 @@ var (
 	syncAll          bool
 	syncStrategy     string
 	syncDryRun       bool
+	syncForce        bool
 	syncStatusSystem string
 )
 
@@ -52,6 +53,7 @@ func init() {
 	syncCmd.Flags().BoolVarP(&syncAll, "all", "a", false, "Sync all projects (default if no filters)")
 	syncCmd.Flags().StringVar(&syncStrategy, "strategy", "", "Override sync strategy (pull/push/bidirectional)")
 	syncCmd.Flags().BoolVar(&syncDryRun, "dry-run", false, "Preview changes without making them")
+	syncCmd.Flags().BoolVar(&syncForce, "force", false, "Force push all tasks, ignoring last_pushed_at (use to re-sync missing data)")
 
 	// Sync status flags
 	syncStatusCmd.Flags().StringVarP(&syncStatusSystem, "system", "s", "", "Filter by system ID or name")
@@ -77,6 +79,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 	// Build sync options
 	options := sync.Options{
 		DryRun: syncDryRun,
+		Force:  syncForce,
 	}
 
 	// Handle strategy override

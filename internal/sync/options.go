@@ -18,4 +18,8 @@ type Options struct {
 	// DryRun when true will simulate the sync without making any changes.
 	// The result will show what would have been created/updated.
 	DryRun bool
+
+	// Force when true will push all tasks regardless of last_pushed_at.
+	// Use this to re-sync tasks that may have been pushed with missing data.
+	Force bool
 }

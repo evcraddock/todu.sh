@@ -131,10 +131,10 @@ func (e *Engine) syncProject(ctx context.Context, project *types.Project, option
 	case StrategyPull:
 		e.syncPull(ctx, project, p, options.DryRun, &pr)
 	case StrategyPush:
-		e.syncPush(ctx, project, p, options.DryRun, &pr)
+		e.syncPush(ctx, project, p, options, &pr)
 	case StrategyBidirectional:
 		e.syncPull(ctx, project, p, options.DryRun, &pr)
-		e.syncPush(ctx, project, p, options.DryRun, &pr)
+		e.syncPush(ctx, project, p, options, &pr)
 	default:
 		pr.Errors = append(pr.Errors, fmt.Errorf("unknown strategy: %s", strategy))
 	}
@@ -273,7 +273,7 @@ func (e *Engine) syncPull(ctx context.Context, project *types.Project, p plugin.
 }
 
 // syncPush pushes tasks from Todu to external system.
-func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.Plugin, dryRun bool, pr *ProjectResult) {
+func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.Plugin, options Options, pr *ProjectResult) {
 	// Fetch tasks from Todu API
 	toduTasks, err := e.apiClient.ListTasks(ctx, &api.TaskListOptions{ProjectID: &project.ID})
 	if err != nil {
@@ -285,14 +285,15 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 	for _, toduTask := range toduTasks {
 		// Skip tasks that haven't been modified since last successful push (optimization)
 		// Uses per-task last_pushed_at instead of project-level last_synced_at for accurate tracking
-		if toduTask.ExternalID != "" && toduTask.LastPushedAt != nil && !toduTask.UpdatedAt.After(*toduTask.LastPushedAt) {
+		// Force flag bypasses this check to allow re-pushing all tasks
+		if !options.Force && toduTask.ExternalID != "" && toduTask.LastPushedAt != nil && !toduTask.UpdatedAt.After(*toduTask.LastPushedAt) {
 			pr.Skipped++
 			continue
 		}
 
 		if toduTask.ExternalID == "" {
 			// Task doesn't have external_id, create it in external system
-			if !dryRun {
+			if !options.DryRun {
 				// Fetch full task details to get description (not included in list response)
 				fullTask, err := e.apiClient.GetTask(ctx, toduTask.ID)
 				if err != nil {
@@ -317,6 +318,20 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 					pr.Errors = append(pr.Errors, fmt.Errorf("failed to create external task %q: %w", toduTask.Title, err))
 					continue
 				}
+
+				// If task is already done/canceled in Todu, close it in external system
+				// (GitHub API doesn't support creating issues in closed state)
+				if fullTask.Status == "done" || fullTask.Status == "canceled" {
+					statusUpdate := &types.TaskUpdate{
+						Status: &fullTask.Status,
+					}
+					_, err = p.UpdateTask(ctx, &project.ExternalID, createdTask.ExternalID, statusUpdate)
+					if err != nil && err != plugin.ErrNotSupported {
+						pr.Errors = append(pr.Errors, fmt.Errorf("failed to close external task %q: %w", toduTask.Title, err))
+						// Continue anyway - task was created, just not closed
+					}
+				}
+
 				// Update Todu task with external_id, source_url, and last_pushed_at
 				now := time.Now()
 				taskUpdate := &types.TaskUpdate{
@@ -350,7 +365,7 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 				// If local task is done/canceled, it may already be completed externally
 				// Try to close it anyway in case it exists but is just not in active list
 				if toduTask.Status == "done" || toduTask.Status == "canceled" {
-					if !dryRun {
+					if !options.DryRun {
 						taskUpdate := &types.TaskUpdate{
 							Status: &toduTask.Status,
 						}
@@ -371,10 +386,10 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 			continue
 		}
 
-		// Check if Todu task is newer
-		if NeedsUpdate(toduTask, externalTask) {
+		// Check if Todu task is newer (or force flag is set)
+		if options.Force || NeedsUpdate(toduTask, externalTask) {
 			// Todu task is newer, push to external system
-			if !dryRun {
+			if !options.DryRun {
 				// Fetch full task details to get description (not included in list response)
 				fullTask, err := e.apiClient.GetTask(ctx, toduTask.ID)
 				if err != nil {
@@ -399,15 +414,17 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 					pr.Errors = append(pr.Errors, fmt.Errorf("failed to push task %q: %w", toduTask.Title, err))
 					continue
 				}
-				// Update last_pushed_at after successful push
-				now := time.Now()
-				lastPushedUpdate := &types.TaskUpdate{
-					LastPushedAt: &now,
-				}
-				_, err = e.apiClient.UpdateTask(ctx, toduTask.ID, lastPushedUpdate)
-				if err != nil {
-					e.logger.Warn().Err(err).Str("task", toduTask.Title).Msg("Failed to update last_pushed_at")
-					// Don't fail the sync, just log the warning
+				// Update last_pushed_at after successful push (skip if force to preserve timestamps)
+				if !options.Force {
+					now := time.Now()
+					lastPushedUpdate := &types.TaskUpdate{
+						LastPushedAt: &now,
+					}
+					_, err = e.apiClient.UpdateTask(ctx, toduTask.ID, lastPushedUpdate)
+					if err != nil {
+						e.logger.Warn().Err(err).Str("task", toduTask.Title).Msg("Failed to update last_pushed_at")
+						// Don't fail the sync, just log the warning
+					}
 				}
 			}
 			e.logger.Debug().Str("task", toduTask.Title).Msg("Pushed task")
@@ -418,8 +435,8 @@ func (e *Engine) syncPush(ctx context.Context, project *types.Project, p plugin.
 		}
 
 		// Sync comments for tasks being pushed
-		if toduTask.ExternalID != "" && !dryRun {
-			e.syncPushComments(ctx, project, p, toduTask, dryRun, pr)
+		if toduTask.ExternalID != "" && !options.DryRun {
+			e.syncPushComments(ctx, project, p, toduTask, options.DryRun, pr)
 		}
 	}
 }

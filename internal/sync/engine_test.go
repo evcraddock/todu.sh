@@ -577,3 +577,175 @@ func TestStrategyIsValid(t *testing.T) {
 		})
 	}
 }
+
+// TestSyncPushClosesCompletedTasks verifies that when pushing a task that is already
+// marked as "done" in Todu, the sync engine creates the external task AND closes it.
+// This is a regression test for the bug where done tasks were created as open issues.
+func TestSyncPushClosesCompletedTasks(t *testing.T) {
+	t.Setenv("TODU_PLUGIN_TEST-SYSTEM_TOKEN", "test-token")
+
+	mockPlugin := plugin.NewMockPlugin("test-system")
+
+	// Create a custom server that returns a done task without external_id
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch {
+		case r.Method == "GET" && r.URL.Path == "/api/v1/projects/1":
+			project := &types.Project{
+				ID:           1,
+				Name:         "Test Project",
+				SystemID:     1,
+				ExternalID:   "test-repo",
+				Status:       "active",
+				SyncStrategy: "push",
+				CreatedAt:    time.Now(),
+				UpdatedAt:    time.Now(),
+			}
+			_ = json.NewEncoder(w).Encode(project)
+
+		case r.Method == "GET" && r.URL.Path == "/api/v1/systems/1":
+			system := &types.System{
+				ID:         1,
+				Identifier: "test-system",
+				Name:       "Test System",
+				URL:        stringPtr("http://test.example.com"),
+				Metadata:   map[string]string{},
+				CreatedAt:  time.Now(),
+				UpdatedAt:  time.Now(),
+			}
+			_ = json.NewEncoder(w).Encode(system)
+
+		case r.Method == "GET" && r.URL.Path == "/api/v1/tasks/":
+			// Return a task that is done but has no external_id
+			now := time.Now()
+			tasksResp := &api.TasksResponse{
+				Items: []*types.Task{
+					{
+						ID:          1,
+						ExternalID:  "", // No external ID - needs to be created
+						Title:       "Completed Task",
+						Description: stringPtr("This task is already done"),
+						ProjectID:   1,
+						Status:      "done", // Already completed
+						CreatedAt:   now.Add(-1 * time.Hour),
+						UpdatedAt:   now,
+					},
+				},
+				Total: 1,
+				Skip:  0,
+				Limit: 100,
+			}
+			_ = json.NewEncoder(w).Encode(tasksResp)
+
+		case r.Method == "GET" && r.URL.Path == "/api/v1/tasks/1":
+			// Return full task details
+			now := time.Now()
+			task := &types.Task{
+				ID:          1,
+				ExternalID:  "",
+				Title:       "Completed Task",
+				Description: stringPtr("This task is already done"),
+				ProjectID:   1,
+				Status:      "done",
+				CreatedAt:   now.Add(-1 * time.Hour),
+				UpdatedAt:   now,
+			}
+			_ = json.NewEncoder(w).Encode(task)
+
+		case r.Method == "PUT" && r.URL.Path == "/api/v1/tasks/1":
+			// Update task (to set external_id after creation)
+			var taskUpdate types.TaskUpdate
+			if err := json.NewDecoder(r.Body).Decode(&taskUpdate); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			task := &types.Task{
+				ID:         1,
+				ExternalID: "",
+				Title:      "Completed Task",
+				ProjectID:  1,
+				Status:     "done",
+				CreatedAt:  time.Now().Add(-1 * time.Hour),
+				UpdatedAt:  time.Now(),
+			}
+			if taskUpdate.ExternalID != nil {
+				task.ExternalID = *taskUpdate.ExternalID
+			}
+			_ = json.NewEncoder(w).Encode(task)
+
+		case r.Method == "PUT" && r.URL.Path == "/api/v1/projects/1":
+			// Update project (last_synced_at)
+			project := &types.Project{
+				ID:           1,
+				Name:         "Test Project",
+				SystemID:     1,
+				ExternalID:   "test-repo",
+				Status:       "active",
+				SyncStrategy: "push",
+				CreatedAt:    time.Now(),
+				UpdatedAt:    time.Now(),
+			}
+			_ = json.NewEncoder(w).Encode(project)
+
+		default:
+			t.Logf("Unhandled request: %s %s", r.Method, r.URL.Path)
+			http.Error(w, "Not found", http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	// Create API client
+	apiClient := api.NewClient(server.URL, "")
+
+	// Add project to mock plugin
+	mockPlugin.AddProject("test-repo", &types.Project{
+		ID:         1,
+		ExternalID: "test-repo",
+		Name:       "Test Project",
+	})
+
+	// Create registry and register mock plugin
+	reg := registry.New()
+	_ = reg.Register("test-system", func() plugin.Plugin {
+		return mockPlugin
+	})
+
+	engine := NewEngine(apiClient, reg)
+
+	ctx := context.Background()
+	options := Options{
+		ProjectIDs: []int{1},
+		DryRun:     false,
+	}
+
+	result, err := engine.Sync(ctx, options)
+	if err != nil {
+		t.Fatalf("Sync failed: %v", err)
+	}
+
+	if result.TotalCreated != 1 {
+		t.Errorf("Expected 1 task created, got %d", result.TotalCreated)
+	}
+	if result.TotalErrors != 0 {
+		t.Errorf("Expected 0 errors, got %d", result.TotalErrors)
+		for _, pr := range result.ProjectResults {
+			for _, e := range pr.Errors {
+				t.Logf("  Error: %v", e)
+			}
+		}
+	}
+
+	// Verify the task was created in the mock plugin (fetch without project filter)
+	tasks, _ := mockPlugin.FetchTasks(ctx, nil, nil)
+	if len(tasks) != 1 {
+		t.Fatalf("Expected 1 task in mock plugin, got %d", len(tasks))
+	}
+
+	// Verify the task status is "done" (meaning UpdateTask was called to close it)
+	// The mock plugin's CreateTask sets the initial status, and UpdateTask should change it to "done"
+	if tasks[0].Status != "done" {
+		t.Errorf("Expected task status to be 'done', got %q. This indicates the sync did not call UpdateTask to close the completed task.", tasks[0].Status)
+	}
+}
