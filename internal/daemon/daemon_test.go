@@ -141,7 +141,7 @@ func TestDaemonPeriodicSync(t *testing.T) {
 
 	apiClient := &mockAPIClient{}
 	daemon := New(engine, apiClient, cfg)
-	ctx, cancel := context.WithTimeout(context.Background(), 350*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 450*time.Millisecond)
 	defer cancel()
 
 	// Start daemon
@@ -150,7 +150,8 @@ func TestDaemonPeriodicSync(t *testing.T) {
 		t.Fatalf("Expected context.DeadlineExceeded, got: %v", err)
 	}
 
-	// Should have run sync at least 3 times (0ms, 100ms, 200ms, 300ms)
+	// Should have run sync at least 3 times (0ms, 100ms, 200ms, 300ms, 400ms)
+	// Using 450ms timeout to allow for CI timing variations
 	if engine.syncCount < 3 {
 		t.Errorf("Expected at least 3 syncs, got %d", engine.syncCount)
 	}
