@@ -403,7 +403,9 @@ func (d *Daemon) exportYesterdayJournal(ctx context.Context) {
 		return
 	}
 
-	yesterday := time.Now().AddDate(0, 0, -1)
+	// Use midnight local time for yesterday to match CLI behavior
+	now := time.Now()
+	yesterday := time.Date(now.Year(), now.Month(), now.Day()-1, 0, 0, 0, 0, time.Local)
 	d.logger.Info().Time("date", yesterday).Msg("Exporting previous day's journal")
 
 	outputPath, err := journal.Export(ctx, d.fullAPIClient, yesterday, d.config.LocalReports)
