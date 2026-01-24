@@ -141,9 +141,13 @@ func (p *Plugin) FetchTasks(ctx context.Context, projectExternalID *string, sinc
 		return nil, handleGitHubError(err, fmt.Sprintf("failed to list issues for %s", *projectExternalID))
 	}
 
-	tasks := make([]*types.Task, len(issues))
-	for i, issue := range issues {
-		tasks[i] = issueToTask(issue, owner, repo)
+	// Filter out pull requests (GitHub's Issues API returns both issues and PRs)
+	var tasks []*types.Task
+	for _, issue := range issues {
+		if issue.PullRequestLinks != nil {
+			continue
+		}
+		tasks = append(tasks, issueToTask(issue, owner, repo))
 	}
 
 	return tasks, nil
