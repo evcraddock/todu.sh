@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,7 +10,6 @@ import (
 )
 
 func TestAuthCmd_Exists(t *testing.T) {
-	// Verify auth command is registered on root
 	found := false
 	for _, cmd := range rootCmd.Commands() {
 		if cmd.Use == "auth" {
@@ -28,6 +26,91 @@ func TestAuthCmd_HasNoBrowserFlag(t *testing.T) {
 	flag := authCmd.Flags().Lookup("no-browser")
 	if flag == nil {
 		t.Error("auth command missing --no-browser flag")
+	}
+}
+
+func TestBuildLoginURL(t *testing.T) {
+	tests := []struct {
+		apiURL string
+		want   string
+	}{
+		{"http://localhost:8000", "http://localhost:8000/ui/auth/login?next=/ui/auth/cli-setup"},
+		{"https://api.example.com", "https://api.example.com/ui/auth/login?next=/ui/auth/cli-setup"},
+		{"http://10.10.1.197:8000", "http://10.10.1.197:8000/ui/auth/login?next=/ui/auth/cli-setup"},
+	}
+
+	for _, tt := range tests {
+		got := buildLoginURL(tt.apiURL)
+		if got != tt.want {
+			t.Errorf("buildLoginURL(%q) = %q, want %q", tt.apiURL, got, tt.want)
+		}
+	}
+}
+
+func TestIsValidKeyFormat(t *testing.T) {
+	tests := []struct {
+		key  string
+		want bool
+	}{
+		{"sk_test_abc123", true},
+		{"sk_live_xyz", true},
+		{"sk_", true},
+		{"invalid_key", false},
+		{"abc123", false},
+		{"", false},
+		{"SK_test", false}, // case sensitive
+	}
+
+	for _, tt := range tests {
+		got := isValidKeyFormat(tt.key)
+		if got != tt.want {
+			t.Errorf("isValidKeyFormat(%q) = %v, want %v", tt.key, got, tt.want)
+		}
+	}
+}
+
+func TestVerifyAPIKey_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/projects/" {
+			auth := r.Header.Get("Authorization")
+			if auth == "Bearer sk_test_valid" {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`[]`))
+				return
+			}
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	err := verifyAPIKey(server.URL, "sk_test_valid")
+	if err != nil {
+		t.Errorf("verifyAPIKey() with valid key error = %v, want nil", err)
+	}
+}
+
+func TestVerifyAPIKey_InvalidKey(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/projects/" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	err := verifyAPIKey(server.URL, "sk_test_bad")
+	if err == nil {
+		t.Error("verifyAPIKey() with invalid key expected error, got nil")
+	}
+}
+
+func TestVerifyAPIKey_ServerDown(t *testing.T) {
+	err := verifyAPIKey("http://127.0.0.1:1", "sk_test_key")
+	if err == nil {
+		t.Error("verifyAPIKey() with unreachable server expected error, got nil")
 	}
 }
 
@@ -77,7 +160,7 @@ func TestPromptAPIKey_TrimsWhitespace(t *testing.T) {
 	}
 }
 
-func TestPromptYesNo_Yes(t *testing.T) {
+func TestPromptYesNo(t *testing.T) {
 	tests := []struct {
 		input string
 		want  bool
@@ -103,88 +186,5 @@ func TestPromptYesNo_Yes(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("promptYesNo(%q) = %v, want %v", tt.input, got, tt.want)
 		}
-	}
-}
-
-func TestRunAuth_VerificationSuccess(t *testing.T) {
-	// Mock API server that accepts the key
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/v1/projects/" {
-			auth := r.Header.Get("Authorization")
-			if auth == "Bearer sk_test_valid_key" {
-				w.Header().Set("Content-Type", "application/json")
-				_, _ = w.Write([]byte(`{"items":[],"total":0,"skip":0,"limit":100}`))
-				return
-			}
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer server.Close()
-
-	// Create a temp config file for saving
-	tmpDir := t.TempDir()
-	tmpConfig := tmpDir + "/config.yaml"
-
-	// Set up the command with piped input and captured output
-	cmd := &cobra.Command{}
-	cmd.SetIn(strings.NewReader("sk_test_valid_key\n"))
-
-	var stdout bytes.Buffer
-
-	// We can't easily test the full runAuth without refactoring,
-	// but we can test that the key validation logic works via the API client
-	// by verifying the mock server accepts our key
-	key := "sk_test_valid_key"
-	if !strings.HasPrefix(key, "sk_") {
-		t.Error("key should start with sk_")
-	}
-
-	_ = tmpConfig
-	_ = stdout
-}
-
-func TestRunAuth_KeyFormatValidation(t *testing.T) {
-	tests := []struct {
-		key     string
-		wantWarn bool
-	}{
-		{"sk_test_abc", false},
-		{"sk_live_abc", false},
-		{"invalid_key", true},
-		{"abc123", true},
-		{"", true},
-	}
-
-	for _, tt := range tests {
-		hasPrefix := strings.HasPrefix(tt.key, "sk_")
-		gotWarn := !hasPrefix
-		if gotWarn != tt.wantWarn {
-			t.Errorf("key %q: warning = %v, want %v", tt.key, gotWarn, tt.wantWarn)
-		}
-	}
-}
-
-func TestOpenBrowser_UnsupportedPlatform(t *testing.T) {
-	// We can't easily test cross-platform browser opening in unit tests,
-	// but we can verify the function exists and handles the URL
-	// The actual browser opening is tested manually
-	url := "http://localhost:8000/ui/auth/login?next=/ui/auth/cli-setup"
-	if !strings.Contains(url, "/ui/auth/login") {
-		t.Error("login URL should contain /ui/auth/login")
-	}
-	if !strings.Contains(url, "cli-setup") {
-		t.Error("login URL should contain cli-setup redirect")
-	}
-}
-
-func TestAuthCmd_LoginURLFormat(t *testing.T) {
-	baseURL := "http://localhost:8000"
-	expected := baseURL + "/ui/auth/login?next=/ui/auth/cli-setup"
-
-	loginURL := baseURL + "/ui/auth/login?next=/ui/auth/cli-setup"
-	if loginURL != expected {
-		t.Errorf("login URL = %q, want %q", loginURL, expected)
 	}
 }

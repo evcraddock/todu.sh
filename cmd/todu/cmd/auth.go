@@ -39,7 +39,7 @@ func runAuth(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	loginURL := cfg.APIURL + "/ui/auth/login?next=/ui/auth/cli-setup"
+	loginURL := buildLoginURL(cfg.APIURL)
 
 	if noBrowser {
 		fmt.Println("Open this URL in your browser to authenticate:")
@@ -65,14 +65,13 @@ func runAuth(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if !strings.HasPrefix(apiKey, "sk_") {
+	if !isValidKeyFormat(apiKey) {
 		fmt.Fprintln(os.Stderr, "⚠ Warning: API key does not start with 'sk_'. It may be invalid.")
 	}
 
 	// Verify the key against the API
 	fmt.Println("Verifying API key...")
-	client := api.NewClient(cfg.APIURL, apiKey)
-	_, verifyErr := client.ListProjects(context.Background(), nil)
+	verifyErr := verifyAPIKey(cfg.APIURL, apiKey)
 
 	if verifyErr != nil {
 		fmt.Fprintf(os.Stderr, "⚠ Warning: API key verification failed: %v\n", verifyErr)
@@ -110,12 +109,29 @@ func openBrowser(url string) error {
 	case "linux":
 		cmd = exec.Command("xdg-open", url)
 	case "windows":
-		cmd = exec.Command("cmd", "/c", "start", url)
+		cmd = exec.Command("cmd", "/c", "start", "", url)
 	default:
 		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
 	}
 
 	return cmd.Start()
+}
+
+// buildLoginURL constructs the browser login URL from the API base URL.
+func buildLoginURL(apiURL string) string {
+	return apiURL + "/ui/auth/login?next=/ui/auth/cli-setup"
+}
+
+// isValidKeyFormat checks whether an API key has the expected sk_ prefix.
+func isValidKeyFormat(key string) bool {
+	return strings.HasPrefix(key, "sk_")
+}
+
+// verifyAPIKey checks that the given API key works against the API.
+func verifyAPIKey(apiURL, apiKey string) error {
+	client := api.NewClient(apiURL, apiKey)
+	_, err := client.ListProjects(context.Background(), nil)
+	return err
 }
 
 // promptAPIKey reads the API key from stdin.
